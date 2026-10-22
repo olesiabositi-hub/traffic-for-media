@@ -75,6 +75,35 @@ button,select,input{font:inherit;color:inherit}
 .btn:hover{filter:brightness(.96)}
 .btn.primary{background:var(--accent);color:#fff;font-size:18px;font-weight:700}
 
+/* дорожные события */
+.tag.tag-red{background:var(--crit);color:var(--ink-fixed)}
+.ev-main{background:var(--surface);border-radius:20px;display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);overflow:hidden}
+.ev-info{padding:28px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.ev-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.kind{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:4px 10px;border-radius:999px;color:var(--ink-fixed)}
+.k-closed{background:var(--crit)} .k-accident{background:var(--bad)} .k-works{background:var(--yellow)} .k-planned{background:var(--blue-ink)}
+.when{font-size:14px;color:var(--muted)}
+.ev-title{font-size:34px;line-height:40px;font-weight:700;letter-spacing:-.01em}
+.ev-seg{font-size:17px;color:var(--muted);margin-top:-8px}
+.facts{display:grid;grid-template-columns:110px 1fr;row-gap:8px;column-gap:12px;font-size:15px}
+.facts dt{color:var(--muted)} .facts dd{margin:0}
+.detour-line{display:flex;align-items:center;gap:10px;background:var(--accent-soft);border-radius:14px;padding:12px 16px;font-size:16px}
+.detour-line b{color:var(--accent-ink)}
+.detour-line i{font-style:normal;font-weight:700;font-size:20px;color:var(--accent-ink)}
+.ev-radio{background:var(--raised);border-radius:14px;padding:16px 18px;font-size:18px;line-height:28px}
+.ev-radio .label{display:block;margin-bottom:4px}
+.ev-map{background:#1F2329;min-height:320px;position:relative}
+.ev-map svg{display:block;width:100%;height:100%;position:absolute;inset:0}
+.ev-ctl{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.ev-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.ev-card{background:var(--surface);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.ev-card .st{font-size:18px}
+.ev-card .what{font-size:15px}
+.ev-card .dl{font-size:14px;color:var(--muted)}
+.ev-card .dl b{color:var(--accent-ink);font-weight:600}
+.ev-card .btn{align-self:flex-start;margin-top:auto}
+.empty{color:var(--muted);font-size:15px}
+@media (max-width:900px){.ev-main{grid-template-columns:minmax(0,1fr)}.ev-map{min-height:240px}.ev-title{font-size:28px;line-height:34px}}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .stat{background:var(--surface);border-radius:20px;padding:20px 24px;display:flex;flex-direction:column;gap:4px}
 .stat .v{font-weight:700;font-size:32px;line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
@@ -211,6 +240,14 @@ footer{font-size:14px;color:var(--muted);padding-top:8px}
     </div>
   </div>
 
+  <section id="events">
+    <div class="sec-head"><h2>Дорожные события</h2><span class="tag tag-red">Срочно в эфир</span>
+      <p>Перекрытия, аварии и ремонт. Для каждого события: что случилось, до какого времени, как объехать и готовая фраза для эфира.</p></div>
+    <div class="ev-main" id="evMain"></div>
+    <div class="ev-ctl"><div class="seg" id="evSeg" role="group" aria-label="Тип события"></div><button class="btn" id="copyAllEv">Скопировать все события</button></div>
+    <div class="ev-list" id="evList"></div>
+  </section>
+
   <div class="stats" id="stats"></div>
 
   <section>
@@ -299,13 +336,14 @@ footer{font-size:14px;color:var(--muted);padding-top:8px}
             </select></div>
           <div class="field"><span class="label">Что включить</span>
             <div class="checks">
+              <label><input type="checkbox" id="c0" checked> Дорожные события с объездами</label>
               <label><input type="checkbox" id="c1" checked> Готовый текст на 30 секунд</label>
               <label><input type="checkbox" id="c2" checked> Топ-5 пробок с объездами</label>
               <label><input type="checkbox" id="c3" checked> Нетипичные пробки</label>
               <label><input type="checkbox" id="c4"> Фото с дорог</label>
               <label><input type="checkbox" id="c5"> Рекорды недели</label>
             </div></div>
-          <div class="checks"><label><input type="checkbox" id="c6" checked> Сразу сообщать о ДТП и нетипичных пробках</label></div>
+          <div class="checks"><label><input type="checkbox" id="c6" checked> Сразу сообщать о перекрытиях, ДТП и нетипичных пробках</label></div>
           <div class="actions"><button class="btn primary" type="submit">Подписаться</button></div>
           <p class="ok-msg" id="subOk" hidden></p>
         </form>
@@ -370,7 +408,7 @@ const CITIES = {
     ],
     groups:[
       ['Мосты через Обь',[['Октябрьский мост',10,4,1],['Димитровский мост',8,8,1],['Бугринский мост',5,27,0],['Коммунальный мост',6,19,-1]]],
-      ['Центр',[['Красный проспект',7,11,0],['пл. Ленина',7,12,1],['Вокзальная магистраль',6,16,0],['ул. Гоголя',5,21,-1]]],
+      ['Центр',[['Красный проспект',7,11,0],['пл. Ленина',7,12,1],['ул. Челюскинцев',7,10,1],['ул. Гоголя',5,21,-1]]],
       ['Магистрали',[['Бердское шоссе',9,5,1],['ул. Большевистская',8,7,0],['ул. Кирова',6,17,-1],['Мочищенское шоссе',7,9,0]]]
     ],
     // когда, время, улица, участок, длина, длилась(мин), скорость, баллы, заметка
@@ -401,6 +439,14 @@ const CITIES = {
         ['2 окт, пт','17:30','Октябрьский мост','от левобережной развязки до ул. Большевистской',4.9,210,2,10,'первый снег']
       ]
     },
+    // тип, улица, участок, что, с, до, полосы, задержка мин, объезд, +мин к объезду, глагол
+    events:[
+      ['closed','Вокзальная магистраль','от ул. Ленина до пр. Димитрова','ремонт трамвайных путей','с 22:00 21 октября','до 06:00 25 октября','в обе стороны',0,'по ул. Челюскинцев и ул. Ленина',7,'перекрыта'],
+      ['accident','ул. Ватутина','от ул. Новосибирской до пл. Труда','столкновение трёх автомобилей','с 08:20','ориентировочно до 09:30','занят правый ряд',12,'по ул. Немировича-Данченко',4,''],
+      ['accident','Бердское шоссе','у остановки «Шлюз», в сторону центра','столкновение двух автомобилей','с 08:32','ориентировочно до 09:15','занят левый ряд',9,'',0,''],
+      ['works','ул. Фрунзе','от ул. Ольги Жилиной до ул. Кошурникова','ремонт теплотрассы','с 18 октября','до 30 октября','сужение до одной полосы',6,'по ул. Кошурникова и ул. Дуси Ковальчук',3,''],
+      ['planned','Коммунальный мост','в сторону левого берега','ремонт деформационных швов','сегодня с 23:00','до 05:00','полностью',0,'по Октябрьскому мосту',5,'будет перекрыт']
+    ],
     photos:[
       ['Октябрьский мост','08:31','@sasha_nsk','dawn','Съезд на Большевистскую, стоим 20 минут',7],
       ['Бердское шоссе, у Речного вокзала','08:12','@m.orlova','dawn','Пробка от самой Ини',3],
@@ -413,7 +459,7 @@ const CITIES = {
     typicalH:[1,0,0,0,0,1,4,7,8,7,5,5,5,5,5,6,7,8,8,6,4,3,2,1],
     jams:[
       ['Сибирский тракт','от ЕКАД до ул. Куйбышева',12,7.8,7,'07:15',null],
-      ['ул. Малышева','от ул. Восточной до ул. 8 Марта',9,3.6,8,'07:50',{via:'по ул. Куйбышева',save:7}],
+      ['ул. Малышева','от ул. Восточной до ул. 8 Марта',9,3.6,8,'07:50',{via:'по ул. Луначарского',save:7}],
       ['ул. Белинского','от ул. Щорса до ул. Малышева',13,3.2,6,'08:05',null],
       ['ул. Металлургов','от ул. Крауля до ул. Викулова',11,3.0,6,'07:55',null],
       ['ул. Щербакова','от ул. Белинского до Сибирского тракта',8,2.4,7,'07:35',null],
@@ -426,7 +472,7 @@ const CITIES = {
       ['ул. Ткачей','от ул. Шейнкмана до ул. Белинского',7,1.6,6,'08:25','ДТП','столкновение двух автомобилей',3]
     ],
     groups:[
-      ['Центр',[['пр. Ленина',6,10,0],['ул. Малышева',8,9,1],['ул. 8 Марта',6,15,0],['ул. Куйбышева',5,20,-1]]],
+      ['Центр',[['пр. Ленина',6,10,0],['ул. Малышева',8,9,1],['ул. 8 Марта',6,15,0],['ул. Луначарского',6,14,1]]],
       ['Мосты и развязки',[['Макаровский мост',8,6,1],['ЕКАД — Сибирский тракт',7,12,0],['Развязка у Кольцово',4,31,-1]]],
       ['Магистрали',[['Сибирский тракт',7,12,0],['ул. Металлургов',6,11,0],['ул. Щербакова',7,8,1],['ЕКАД',4,38,-1]]]
     ],
@@ -451,6 +497,12 @@ const CITIES = {
         ['1 сен, вт','08:10','ул. Малышева','от ул. Восточной до ул. 8 Марта',4.6,145,4,9,'первое сентября']
       ]
     },
+    events:[
+      ['closed','ул. Куйбышева','от ул. Луначарского до ул. Восточной','замена трубопровода','с 19 октября','до 1 ноября','в обе стороны',0,'по ул. Малышева',6,'перекрыта'],
+      ['accident','ул. Ткачей','от ул. Шейнкмана до ул. Белинского','столкновение двух автомобилей','с 08:25','ориентировочно до 09:20','занят левый ряд',8,'по ул. Шейнкмана',3,''],
+      ['works','ул. Фронтовых Бригад','от ул. Шефской до ул. Восстания','замена трамвайных путей','с 12 октября','до 15 ноября','по одной полосе в каждую сторону',7,'по ул. Восстания',4,''],
+      ['planned','пр. Ленина','от ул. Луначарского до ул. Карла Либкнехта','городской забег','в субботу с 10:00','до 14:00','полностью',0,'по ул. Малышева',8,'будет перекрыт']
+    ],
     photos:[
       ['Сибирский тракт, у ЕКАД','08:22','@ural_driver','dawn','Встали на въезде в город',5],
       ['ул. Фронтовых Бригад','08:33','@katya.ekb','day','Ремонт путей, одна полоса',9],
@@ -463,6 +515,7 @@ for(const c of Object.values(CITIES)){
   c.jams = c.jams.map(a=>({street:a[0],seg:a[1],speed:a[2],len:a[3],score:a[4],start:a[5],alt:a[6]})).sort((x,y)=>y.len-x.len);
   c.atyp = c.atyp.map(a=>({street:a[0],seg:a[1],speed:a[2],len:a[3],score:a[4],start:a[5],cause:a[6],why:a[7],usual:a[8]}));
   for(const k in c.hist) c.hist[k]=c.hist[k].map(a=>({date:a[0],time:a[1],street:a[2],seg:a[3],len:a[4],dur:a[5],speed:a[6],score:a[7],note:a[8]||''}));
+  c.events = (c.events||[]).map(a=>({kind:a[0],street:a[1],seg:a[2],what:a[3],since:a[4],until:a[5],lanes:a[6],delay:a[7],via:a[8],extra:a[9],word:a[10]}));
   c.hist.today=[...c.jams,...c.atyp].map(j=>({date:'сегодня',time:j.start,street:j.street,seg:j.seg,len:j.len,dur:SNAP-toMin(j.start),speed:j.speed,score:j.score,note:j.cause?j.cause:''}));
   c.totalKm = c.jams.reduce((s,j)=>s+j.len,0)+c.atyp.reduce((s,j)=>s+j.len,0)+62;
 }
@@ -481,16 +534,75 @@ const pct = c => Math.round(c.totalKm/c.roadKm*100);
 const forecastHour = () => Math.floor(SNAP/60)+2;
 const worstAlt = c => [...c.jams].filter(j=>j.alt).sort((a,b)=>b.score-a.score||b.len-a.len)[0];
 
+const KIND={closed:'Перекрытие',accident:'ДТП',works:'Ремонт',planned:'Плановое перекрытие'};
+const mainEvent = c => c.events.find(e=>e.kind==='closed') || c.events[0];
+function evPhrase(e){
+  const where=`${e.street}, ${e.seg}`;
+  if(e.kind==='closed') return `Внимание, водители! ${where} — ${e.word} ${e.until}, ${e.lanes}. Причина — ${e.what}. Объезд ${e.via}, дорога займёт примерно на ${durAcc(e.extra)} больше. По данным 2ГИС.`;
+  if(e.kind==='accident') return `ДТП: ${where}, ${e.lanes}. Движение затруднено, задержка — ${dur(e.delay)}.${e.via?` Лучше объехать ${e.via}.`:''} По данным 2ГИС.`;
+  if(e.kind==='works') return `${where}: ${e.what}, ${e.lanes} ${e.until}. Задержка — ${dur(e.delay)}, можно объехать ${e.via}. По данным 2ГИС.`;
+  return `Заранее предупреждаем: ${e.since} ${e.until} ${where} ${e.word} ${e.lanes} — ${e.what}. Объезд ${e.via}. По данным 2ГИС.`;
+}
+function evMap(e){
+  // условная схема: перекрытый участок красным, объезд зелёным по параллельной улице
+  const short=t=>t.length>26?t.slice(0,25)+'…':t;
+  const via=(e.via||'').replace(/^по |^через /,'');
+  const bad=e.kind==='works'?'#FFB919':e.kind==='accident'?'#FF7E45':'#FF5A5F';
+  return `<svg viewBox="0 0 400 320" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Схема объезда">
+  <rect width="400" height="320" fill="#1F2329"/>
+  <path d="M0 250 C80 230 140 280 220 262 S340 230 400 246 L400 320 L0 320Z" fill="#4A5C6E"/>
+  <rect x="300" y="20" width="80" height="60" rx="14" fill="#2F3D33"/><rect x="24" y="186" width="70" height="44" rx="12" fill="#2F3D33"/>
+  <g stroke="#7A74AE" stroke-linecap="round" fill="none">
+    <path d="M0 96 H400" stroke-width="7"/><path d="M0 170 H400" stroke-width="9"/>
+    <path d="M110 0 V250" stroke-width="7"/><path d="M290 0 V250" stroke-width="7"/>
+    <path d="M200 0 V96 M200 170 V250 M40 0 V96 M360 96 V250" stroke-width="3" opacity=".6"/>
+  </g>
+  ${e.via?`<path d="M60 170 H110 V96 H290 V170 H340" fill="none" stroke="#2FC035" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M332 162 L346 170 L332 178Z" fill="#2FC035"/>`:''}
+  <path d="M120 170 H280" stroke="${bad}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${e.kind==='closed'||e.kind==='planned'?'0':'14 10'}"/>
+  <circle cx="200" cy="170" r="17" fill="${bad}"/><path d="M193 163 L207 177 M207 163 L193 177" stroke="#1A1A1A" stroke-width="3.5" stroke-linecap="round"/>
+  <text x="200" y="204" text-anchor="middle" fill="#F2F2F0" font-size="13" font-weight="600" font-family="Golos Text, sans-serif">${esc(short(e.street))}</text>
+  ${e.via?`<text x="200" y="86" text-anchor="middle" fill="#2FC035" font-size="13" font-weight="600" font-family="Golos Text, sans-serif">Объезд: ${esc(short(via))}</text>`:''}
+  <text x="16" y="306" fill="#A3A8AE" font-size="11" font-family="Golos Text, sans-serif">Условная схема</text>
+</svg>`;
+}
+let evFilter='all';
+function renderEvents(){
+  const c=C(), m=mainEvent(c);
+  $('evMain').innerHTML = m?`<div class="ev-info">
+      <div class="ev-row"><span class="kind k-${m.kind}">${KIND[m.kind]}</span><span class="when">${m.kind==='planned'?'Скоро':'Действует сейчас'}</span></div>
+      <div class="ev-title">${esc(m.street)} ${esc(m.word)}</div>
+      <div class="ev-seg">${esc(m.seg)}, ${esc(m.lanes)}</div>
+      <dl class="facts"><dt>Причина</dt><dd>${esc(m.what)}</dd><dt>Сроки</dt><dd>${esc(m.since)} ${esc(m.until)}</dd></dl>
+      ${m.via?`<div class="detour-line"><i>↱</i><span>Объезд <b>${esc(m.via)}</b>, примерно +${m.extra} мин</span></div>`:''}
+      <div class="ev-radio"><span class="label">Текст для эфира</span>${esc(evPhrase(m))}</div>
+      <div class="actions"><button class="btn primary" data-evcopy="main">Скопировать для эфира</button></div>
+    </div><div class="ev-map">${evMap(m)}</div>`:'<div class="ev-info"><p class="empty">Перекрытий и аварий сейчас нет.</p></div>';
+  const counts=k=>c.events.filter(e=>k==='all'||e.kind===k).length;
+  renderSeg($('evSeg'),[['all',`Все · ${counts('all')}`],['closed','Перекрытия'],['accident',`ДТП · ${counts('accident')}`],['works','Ремонт'],['planned','Плановые']],evFilter,'ev');
+  const rest=c.events.filter(e=>e!==m && (evFilter==='all'||e.kind===evFilter));
+  $('evList').innerHTML = rest.map((e,i)=>`<div class="ev-card">
+      <div class="ev-row"><span class="kind k-${e.kind}">${KIND[e.kind]}</span><span class="when">${esc(e.since)}</span></div>
+      <div><div class="st">${esc(e.street)}</div><div class="segtxt">${esc(e.seg)}</div></div>
+      <div class="what">${esc(e.what[0].toUpperCase()+e.what.slice(1))}, ${esc(e.lanes)}${e.until?`, ${esc(e.until)}`:''}.${e.delay?` Задержка ${e.delay} мин.`:''}</div>
+      ${e.via?`<div class="dl">Объезд <b>${esc(e.via)}</b></div>`:''}
+      <button class="btn" data-evcopy="${c.events.indexOf(e)}">Скопировать для эфира</button>
+    </div>`).join('') || '<p class="empty">Других событий этого типа сейчас нет.</p>';
+}
 const FORMATS = {
   short:{label:'10 секунд', make(c){const j=worstAlt(c);
-    return `По данным 2ГИС, в ${c.gen} ${c.score} ${balls(c.score)}. ${j.street} стоит в плотной пробке, лучше ехать ${j.alt.via}.`}},
+    const m=c.events.find(e=>e.kind==='closed');
+    return `По данным 2ГИС, в ${c.gen} ${c.score} ${balls(c.score)}. `+(m?`${m.street} ${m.word}, объезд ${m.via}. `:'')+`${j.street} стоит в плотной пробке, лучше ехать ${j.alt.via}.`}},
   half:{label:'30 секунд', make(c){
     const [a,b]=c.jams, j=worstAlt(c), x=c.atyp[0], fh=forecastHour(), fs=c.hourly[fh];
-    let t=`По данным 2ГИС, в ${c.gen} сейчас ${c.score} ${balls(c.score)}, ${cmpPhrase(c)}. Общая протяжённость пробок — ${km(c.totalKm)} км, это ${pct(c)}% дорог города. `;
+    let t=`По данным 2ГИС, в ${c.gen} сейчас ${c.score} ${balls(c.score)}, ${cmpPhrase(c)}. `;
+    const m=c.events.find(e=>e.kind==='closed'), acc=c.events.filter(e=>e.kind==='accident');
+    if(m) t+=`Важно: ${m.street}, ${m.seg}, ${m.word} ${m.until}, объезд ${m.via}. `;
+    if(acc.length) t+=`${acc.length>1?'Аварии':'Авария'}: ${acc.map(e=>e.street).join(', ')}. `;
+    t+=`Общая протяжённость пробок — ${km(c.totalKm)} км, это ${pct(c)}% дорог города. `;
     t+=`Самая длинная пробка — ${a.street}, ${a.seg}: ${km(a.len)} км, скорость ${a.speed} км/ч, проезд займёт ${dur(travel(a))}. `;
     t+=`${b.street}, ${b.seg} — ${km(b.len)} км, ${dur(travel(b))}. `;
     if(j) t+=`${j.street} стоит, ${j.alt.via} быстрее примерно на ${durAcc(j.alt.save)}. `;
-    if(x) t+=`Внимание: ${x.street}, ${x.seg} — ${x.why}. `;
     t+=`К ${pad(fh)}:00 ожидается ${fs} ${balls(fs)}.`;
     return t}},
   news:{label:'Новость', make(c){
@@ -498,11 +610,13 @@ const FORMATS = {
     return `Пробки в ${c.gen} ${dateStr}: ${c.score} ${balls(c.score)}, ${a.street} — ${km(a.len)} км\n\n`+
       `Утром ${dateStr} загруженность дорог в ${c.gen} достигла ${c.score} ${balls(c.score)}, ${cmpPhrase(c)}, сообщает 2ГИС. Пробки растянулись на ${km(c.totalKm)} км — ${pct(c)}% дорог города. `+
       `Самый длинный затор — ${a.street} (${a.seg}): ${km(a.len)} км при скорости ${a.speed} км/ч. `+
+      (c.events.find(e=>e.kind==='closed')?(e=>`Кроме того, ${e.street} (${e.seg}) ${e.word} ${e.until} из-за работ: ${e.what}. Объезд ${e.via}. `)(c.events.find(e=>e.kind==='closed')):'')+
       (x?`Нетипичная пробка — ${x.street}, причина: ${x.why}.`:'')}},
   post:{label:'Пост', make(c){
     const t=c.jams.slice(0,4).map(j=>`— ${j.street}: ${km(j.len)} км, ${shortDur(travel(j))}`).join('\n');
     const j=worstAlt(c);
-    return `${c.name}, ${hhmm(SNAP)}. Пробки ${c.score} ${balls(c.score)}.\n\n${t}\n\n${j?`Совет: ${j.street.toLowerCase().startsWith('ул')?j.street:j.street} лучше объехать ${j.alt.via}.\n`:''}Данные 2ГИС`}}
+    const ev=c.events.filter(e=>e.kind!=='planned').map(e=>`— ${KIND[e.kind]}: ${e.street}${e.via?`, объезд ${e.via}`:''}`).join('\n');
+    return `${c.name}, ${hhmm(SNAP)}. Пробки ${c.score} ${balls(c.score)}.\n\n${ev?`Дорожные события:\n${ev}\n\n`:''}Пробки:\n${t}\n\n${j?`Совет: ${j.street.toLowerCase().startsWith('ул')?j.street:j.street} лучше объехать ${j.alt.via}.\n`:''}Данные 2ГИС`}}
 };
 
 function renderCitySel(){
@@ -524,7 +638,7 @@ function renderHero(){
   $('stats').innerHTML = [
     [km(c.totalKm)+' км','Общая длина пробок'],
     [pct(c)+'%','Дорог города в пробках'],
-    [c.jams.length+c.atyp.length,'Пробок, из них '+c.atyp.length+' нетипичных'],
+    [c.events.length,'Дорожных событий, из них '+c.events.filter(e=>e.kind==='closed').length+' '+plural(c.events.filter(e=>e.kind==='closed').length,'перекрытие','перекрытия','перекрытий')],
     ['≈ '+c.lostK+' тыс. ч','Горожане простояли с утра (оценка)']
   ].map(([v,d],i)=>`<div class="stat ${['green','yellow','',''][i]}"><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
 }
@@ -625,6 +739,7 @@ function renderPhotos(){
 }
 
 const USP=[
+  ['Дорожные события в эфир','Перекрытия, ДТП и ремонт с причиной, сроками и объездом. На каждое событие своя готовая фраза, главное перекрытие — со схемой объезда.',1],
   ['Фото с дорог от водителей','Снимки пробки из навигатора с готовой подписью и ссылкой на источник. Иллюстрация к новости за секунду.',1],
   ['Текст под хронометраж','10 секунд, 30 секунд, новость для сайта, пост для соцсетей. Ведущий читает без правок.',1],
   ['Совет, как объехать','Не просто «стоит», а «лучше по Бугринскому, быстрее на 19 минут». Полезно слушателю, и бренд звучит как помощник.',1],
@@ -649,6 +764,7 @@ function renderApi(){
   const o={city:c.name,updated_at:`${TODAY.toISOString().slice(0,10)}T${hhmm(SNAP)}:00+07:00`,score:c.score,typical_score:c.typical,
     total_km:+c.totalKm.toFixed(1),share_of_roads:pct(c)/100,
     top:c.jams.slice(0,2).map(j=>({street:j.street,segment:j.seg,speed_kmh:j.speed,length_km:j.len,travel_min:Math.round(travel(j)),score:j.score,detour:j.alt?{via:j.alt.via,saves_min:j.alt.save}:null})),
+    events:c.events.slice(0,2).map(e=>({type:e.kind,street:e.street,segment:e.seg,reason:e.what,since:e.since,until:e.until,lanes:e.lanes,detour:e.via?{via:e.via,extra_min:e.extra}:null,radio:evPhrase(e)})),
     scripts:{radio_10s:FORMATS.short.make(c)}};
   $('api').textContent = JSON.stringify(o,null,2);
 }
@@ -656,6 +772,7 @@ function renderApi(){
 function renderMail(){
   const c=C(), on=id=>$(id).checked, freq=$('subFreq').selectedOptions[0].textContent;
   let b='';
+  if(on('c0')&&c.events.length) b+=`<div><div class="label">Дорожные события</div><ol>${c.events.map(e=>`<li><b>${KIND[e.kind]}: ${esc(e.street)}</b>, ${esc(e.seg)} — ${esc(e.what)}${e.via?`. Объезд ${esc(e.via)}`:''}</li>`).join('')}</ol></div>`;
   if(on('c1')) b+=`<p>${esc(FORMATS.half.make(c))}</p>`;
   if(on('c2')) b+=`<div><div class="label">Топ-5 пробок</div><ol>${c.jams.slice(0,5).map(j=>`<li><b>${esc(j.street)}</b>, ${esc(j.seg)} — ${km(j.len)} км, ${j.speed} км/ч, ${shortDur(travel(j))}${j.alt?`. Объезд ${esc(j.alt.via)}`:''}</li>`).join('')}</ol></div>`;
   if(on('c3')&&c.atyp.length) b+=`<div><div class="label">Нетипичные</div><ol>${c.atyp.slice(0,3).map(a=>`<li><b>${esc(a.street)}</b> — ${a.cause.toLowerCase()}: ${esc(a.why)}</li>`).join('')}</ol></div>`;
@@ -665,7 +782,7 @@ function renderMail(){
   $('mail').innerHTML = `<div class="mail-h"><span class="muted">Кому: ${esc($('subEmail').value||'—')} · ${esc(freq.toLowerCase())}</span><b>Пробки, ${c.name}, ${hhmm(SNAP)}: ${c.score} ${balls(c.score)}</b></div><div class="mail-b">${b}<p class="muted" style="font-size:12px">Можно цитировать со ссылкой на 2ГИС. Отписаться — в настройках подписки.</p></div>`;
 }
 
-function renderAll(){renderCitySel();renderHero();renderChart();renderTop();renderGroups();renderAtyp();renderHist();renderPhotos();renderApi();renderMail()}
+function renderAll(){renderCitySel();renderHero();renderEvents();renderChart();renderTop();renderGroups();renderAtyp();renderHist();renderPhotos();renderApi();renderMail()}
 
 // интерактив
 let toastT;
@@ -680,11 +797,14 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.c){city=b.dataset.c;stopSpeak();renderAll()}
   else if(b.dataset.f){fmt=b.dataset.f;stopSpeak();renderScript()}
+  else if(b.dataset.ev){evFilter=b.dataset.ev;renderEvents()}
+  else if(b.dataset.evcopy!==undefined){const c=C();copy(evPhrase(b.dataset.evcopy==='main'?mainEvent(c):c.events[+b.dataset.evcopy]))}
   else if(b.dataset.p){period=b.dataset.p;renderHist()}
   else if(b.dataset.s){sortKey=b.dataset.s;renderHist()}
   else if(b.dataset.cap!==undefined){const p=C().photos[+b.dataset.cap];copy(`Фото: пользователь 2ГИС ${p[2]}. ${p[0]}, ${dateStr}, ${p[1]}`)}
 });
 $('copyScript').onclick=()=>copy($('script').textContent);
+$('copyAllEv').onclick=()=>copy(C().events.map(evPhrase).join('\n\n'));
 $('copyRecord').onclick=()=>copy($('recordTxt').textContent);
 $('copyEmbed').onclick=()=>copy($('embed').textContent);
 
@@ -701,7 +821,7 @@ if('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window){
   };
 }
 
-['subEmail','subFreq','c1','c2','c3','c4','c5','c6'].forEach(id=>$(id).addEventListener('input',renderMail));
+['subEmail','subFreq','c0','c1','c2','c3','c4','c5','c6'].forEach(id=>$(id).addEventListener('input',renderMail));
 $('subForm').addEventListener('submit',e=>{
   e.preventDefault(); const m=$('subEmail').value.trim(), ok=$('subOk');
   ok.hidden=false;
