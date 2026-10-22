@@ -104,6 +104,23 @@ button,select,input{font:inherit;color:inherit}
 .ev-card .btn{align-self:flex-start;margin-top:auto}
 .empty{color:var(--muted);font-size:15px}
 @media (max-width:900px){.ev-main{grid-template-columns:minmax(0,1fr)}.ev-map{min-height:240px}.ev-title{font-size:28px;line-height:34px}}
+/* где заправиться */
+.fuel-top{background:var(--surface);border-radius:20px;padding:28px;display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:28px;align-items:start}
+.fuel-num{font-size:56px;line-height:1;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.fuel-num small{font-size:24px;color:var(--muted);font-weight:600}
+.fuel-bar{height:10px;border-radius:5px;background:var(--sunk);overflow:hidden;margin-top:14px}
+.fuel-bar i{display:block;height:100%;background:var(--accent);border-radius:5px}
+.fuel-say{display:flex;flex-direction:column;gap:14px;min-width:0}
+.fuel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.fcard{background:var(--surface);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.fcard h3{font-size:20px}
+.q{font-size:13px;font-weight:700;padding:4px 10px;border-radius:999px;color:var(--ink-fixed)}
+.q0{background:var(--ok)} .q1{background:var(--yellow)} .q2{background:var(--bad)}
+.fcard .avail{font-size:15px}
+.fcard .warn{font-size:14px;color:var(--yellow)}
+.fcard .btn{align-self:flex-start;margin-top:auto}
+.src{font-size:13px;color:var(--muted)}
+@media (max-width:900px){.fuel-top{grid-template-columns:minmax(0,1fr)}}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .stat{background:var(--surface);border-radius:20px;padding:20px 24px;display:flex;flex-direction:column;gap:4px}
 .stat .v{font-weight:700;font-size:32px;line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
@@ -280,6 +297,14 @@ footer{font-size:14px;color:var(--muted);padding-top:8px}
     <div class="atyp" id="atyp"></div>
   </section>
 
+  <section id="fuel">
+    <div class="sec-head"><h2>Где заправиться</h2><span class="tag">Новая рубрика</span>
+      <p>Очереди и наличие топлива на АЗС по районам города. Спокойная сводка без паники: где заправиться без очереди и чего где нет.</p></div>
+    <div class="fuel-top" id="fuelTop"></div>
+    <div class="fuel-grid" id="fuelGrid"></div>
+    <p class="src">Источник в реальной версии — карта топлива 2ГИС: отметки пользователей и обезличенные данные о покупках. Адреса и цифры в прототипе демонстрационные, названия сетей АЗС не указаны намеренно.</p>
+  </section>
+
   <section>
     <div class="sec-head"><h2>История и рекорды</h2>
       <p>Крупнейшие пробки за период. Сортировка по длине, продолжительности, скорости потока и баллам на участке.</p></div>
@@ -340,6 +365,7 @@ footer{font-size:14px;color:var(--muted);padding-top:8px}
               <label><input type="checkbox" id="c1" checked> Готовый текст на 30 секунд</label>
               <label><input type="checkbox" id="c2" checked> Топ-5 пробок с объездами</label>
               <label><input type="checkbox" id="c3" checked> Нетипичные пробки</label>
+              <label><input type="checkbox" id="c7"> Где заправиться: очереди и топливо по районам</label>
               <label><input type="checkbox" id="c4"> Фото с дорог</label>
               <label><input type="checkbox" id="c5"> Рекорды недели</label>
             </div></div>
@@ -447,6 +473,15 @@ const CITIES = {
       ['works','ул. Фрунзе','от ул. Ольги Жилиной до ул. Кошурникова','ремонт теплотрассы','с 18 октября','до 30 октября','сужение до одной полосы',6,'по ул. Кошурникова и ул. Дуси Ковальчук',3,''],
       ['planned','Коммунальный мост','в сторону левого берега','ремонт деформационных швов','сегодня с 23:00','до 05:00','полностью',0,'по Октябрьскому мосту',5,'будет перекрыт']
     ],
+    // район, всего АЗС, со всеми видами топлива, очередь 0/1/2, где (после «на»), чего нет, лимит
+    fuel:[
+      ['Центральный',9,9,1,['ул. Каменской','Октябрьской магистрали','ул. Добролюбова'],'',''],
+      ['Ленинский',14,12,1,['ул. Станиславского','пл. Труда','ул. Титова'],'АИ-95 нет на 2 АЗС из 14',''],
+      ['Кировский',11,11,0,['ул. Сибиряков-Гвардейцев','ул. Петухова','ул. Зорге'],'',''],
+      ['Октябрьский',10,8,2,['ул. Выборной','Бердском шоссе','ул. Никитина'],'дизельного топлива нет на 2 АЗС из 10','на Бердском шоссе на одной АЗС лимит 40 литров'],
+      ['Калининский',12,12,0,['ул. Богдана Хмельницкого','ул. Учительской','ул. Объединения'],'',''],
+      ['Советский',7,6,1,['Бердском шоссе у Шлюза','ул. Ильича','ул. Арбузова'],'АИ-92 нет на 1 АЗС из 7','']
+    ],
     photos:[
       ['Октябрьский мост','08:31','@sasha_nsk','dawn','Съезд на Большевистскую, стоим 20 минут',7],
       ['Бердское шоссе, у Речного вокзала','08:12','@m.orlova','dawn','Пробка от самой Ини',3],
@@ -503,6 +538,13 @@ const CITIES = {
       ['works','ул. Фронтовых Бригад','от ул. Шефской до ул. Восстания','замена трамвайных путей','с 12 октября','до 15 ноября','по одной полосе в каждую сторону',7,'по ул. Восстания',4,''],
       ['planned','пр. Ленина','от ул. Луначарского до ул. Карла Либкнехта','городской забег','в субботу с 10:00','до 14:00','полностью',0,'по ул. Малышева',8,'будет перекрыт']
     ],
+    fuel:[
+      ['Ленинский',10,10,0,['ул. Белинского','ул. Шейнкмана','ул. Московской'],'',''],
+      ['Октябрьский',9,7,1,['ул. Луначарского','ул. Малышева','Сибирском тракте'],'АИ-95 нет на 2 АЗС из 9',''],
+      ['Кировский',8,8,1,['ул. Восточной','ул. Блюхера','ул. Комсомольской'],'',''],
+      ['Чкаловский',11,9,2,['ул. Щербакова','ул. Белинского','Полевском тракте'],'дизельного топлива нет на 2 АЗС из 11','на ул. Щербакова на одной АЗС лимит 30 литров'],
+      ['Верх-Исетский',12,12,0,['ул. Металлургов','ул. Крауля','ул. Татищева'],'','']
+    ],
     photos:[
       ['Сибирский тракт, у ЕКАД','08:22','@ural_driver','dawn','Встали на въезде в город',5],
       ['ул. Фронтовых Бригад','08:33','@katya.ekb','day','Ремонт путей, одна полоса',9],
@@ -516,6 +558,7 @@ for(const c of Object.values(CITIES)){
   c.atyp = c.atyp.map(a=>({street:a[0],seg:a[1],speed:a[2],len:a[3],score:a[4],start:a[5],cause:a[6],why:a[7],usual:a[8]}));
   for(const k in c.hist) c.hist[k]=c.hist[k].map(a=>({date:a[0],time:a[1],street:a[2],seg:a[3],len:a[4],dur:a[5],speed:a[6],score:a[7],note:a[8]||''}));
   c.events = (c.events||[]).map(a=>({kind:a[0],street:a[1],seg:a[2],what:a[3],since:a[4],until:a[5],lanes:a[6],delay:a[7],via:a[8],extra:a[9],word:a[10]}));
+  c.fuel = (c.fuel||[]).map(a=>({d:a[0],total:a[1],all:a[2],q:a[3],where:a[4],miss:a[5],limit:a[6]}));
   c.hist.today=[...c.jams,...c.atyp].map(j=>({date:'сегодня',time:j.start,street:j.street,seg:j.seg,len:j.len,dur:SNAP-toMin(j.start),speed:j.speed,score:j.score,note:j.cause?j.cause:''}));
   c.totalKm = c.jams.reduce((s,j)=>s+j.len,0)+c.atyp.reduce((s,j)=>s+j.len,0)+62;
 }
@@ -588,6 +631,41 @@ function renderEvents(){
       ${e.via?`<div class="dl">Объезд <b>${esc(e.via)}</b></div>`:''}
       <button class="btn" data-evcopy="${c.events.indexOf(e)}">Скопировать для эфира</button>
     </div>`).join('') || '<p class="empty">Других событий этого типа сейчас нет.</p>';
+}
+const inDistrict = d => 'в '+d.replace(/(ый|ий)$/,'ом')+' районе';
+const andList = a => a.length>1?a.slice(0,-1).join(', ')+' и '+a[a.length-1]:a[0];
+const Q=['Без очереди','Небольшие очереди','Очереди'];
+function fuelPhrase(f){
+  let t=`По данным пользователей 2ГИС, ${inDistrict(f.d)} `;
+  t+= f.q===0?`заправиться можно без очереди, например на ${andList(f.where)}. `:`сейчас ${f.q===1?'небольшие очереди':'очереди'} на заправках на ${andList(f.where)}. `;
+  t+= f.all===f.total?'В наличии все виды топлива.':`Все виды топлива есть на ${f.all} из ${f.total} АЗС, ${f.miss}.`;
+  if(f.limit) t+=` Учтите: ${f.limit}.`;
+  return t;
+}
+function fuelCity(c){
+  const tot=c.fuel.reduce((s,f)=>s+f.total,0), all=c.fuel.reduce((s,f)=>s+f.all,0);
+  const busy=c.fuel.filter(f=>f.q===2), calm=c.fuel.filter(f=>f.q===0).map(f=>f.d);
+  let t=`По данным пользователей 2ГИС, в ${c.gen} все виды топлива есть на ${all} из ${tot} заправок. `;
+  if(busy.length) t+=`Очереди — ${busy.map(f=>inDistrict(f.d)+', на '+andList(f.where.slice(0,2))).join('; ')}. `;
+  const lim=c.fuel.filter(f=>f.limit); if(lim.length) t+=`Есть лимиты: ${lim.map(f=>f.limit).join('; ')}. `;
+  if(calm.length) t+=`Без очереди можно заправиться ${calm.length>1?'в '+andList(calm.map(d=>d.replace(/(ый|ий)$/,'ом')))+' районах':inDistrict(calm[0])}.`;
+  return {t,tot,all};
+}
+function renderFuel(){
+  const c=C(); if(!c.fuel.length){$('fuel').hidden=true;return} $('fuel').hidden=false;
+  const r=fuelCity(c), pc=Math.round(r.all/r.tot*100);
+  $('fuelTop').innerHTML=`<div><div class="label">Все виды топлива в наличии</div>
+      <div class="fuel-num">${r.all}<small> из ${r.tot} АЗС</small></div><div class="fuel-bar"><i style="width:${pc}%"></i></div>
+      <p class="src" style="margin-top:10px">${pc}% заправок города · ${c.fuel.filter(f=>f.q===2).length} ${plural(c.fuel.filter(f=>f.q===2).length,'район','района','районов')} с очередями</p></div>
+    <div class="fuel-say"><div class="ev-radio"><span class="label">Сводка по городу для эфира</span>${esc(r.t)}</div>
+      <div class="actions"><button class="btn primary" data-fuel="city">Скопировать сводку</button></div></div>`;
+  $('fuelGrid').innerHTML=c.fuel.map((f,i)=>`<div class="fcard">
+      <div class="ev-row"><h3>${esc(f.d)} район</h3><span class="q q${f.q}">${Q[f.q]}</span></div>
+      <div class="avail">${f.all===f.total?'Все виды топлива на всех '+f.total+' АЗС':'Все виды топлива на '+f.all+' из '+f.total+' АЗС'}</div>
+      ${f.miss?`<div class="warn">${esc(f.miss[0].toUpperCase()+f.miss.slice(1))}</div>`:''}
+      ${f.limit?`<div class="warn">${esc(f.limit[0].toUpperCase()+f.limit.slice(1))}</div>`:''}
+      <div class="segtxt">${f.q===0?'Без очереди':'Очереди'} на ${esc(andList(f.where))}</div>
+      <button class="btn" data-fuel="${i}">Скопировать для эфира</button></div>`).join('');
 }
 const FORMATS = {
   short:{label:'10 секунд', make(c){const j=worstAlt(c);
@@ -740,6 +818,7 @@ function renderPhotos(){
 
 const USP=[
   ['Дорожные события в эфир','Перекрытия, ДТП и ремонт с причиной, сроками и объездом. На каждое событие своя готовая фраза, главное перекрытие — со схемой объезда.',1],
+  ['Где заправиться','Очереди и наличие топлива по районам из карты топлива 2ГИС. Спокойная сводка для эфира: где заправиться без очереди, где лимиты.',1],
   ['Фото с дорог от водителей','Снимки пробки из навигатора с готовой подписью и ссылкой на источник. Иллюстрация к новости за секунду.',1],
   ['Текст под хронометраж','10 секунд, 30 секунд, новость для сайта, пост для соцсетей. Ведущий читает без правок.',1],
   ['Совет, как объехать','Не просто «стоит», а «лучше по Бугринскому, быстрее на 19 минут». Полезно слушателю, и бренд звучит как помощник.',1],
@@ -777,12 +856,13 @@ function renderMail(){
   if(on('c2')) b+=`<div><div class="label">Топ-5 пробок</div><ol>${c.jams.slice(0,5).map(j=>`<li><b>${esc(j.street)}</b>, ${esc(j.seg)} — ${km(j.len)} км, ${j.speed} км/ч, ${shortDur(travel(j))}${j.alt?`. Объезд ${esc(j.alt.via)}`:''}</li>`).join('')}</ol></div>`;
   if(on('c3')&&c.atyp.length) b+=`<div><div class="label">Нетипичные</div><ol>${c.atyp.slice(0,3).map(a=>`<li><b>${esc(a.street)}</b> — ${a.cause.toLowerCase()}: ${esc(a.why)}</li>`).join('')}</ol></div>`;
   if(on('c4')) b+=`<p class="muted">${c.photos.length} фото с дорог во вложении, подписи готовы.</p>`;
+  if(on('c7')&&c.fuel.length) b+=`<p><b>Где заправиться.</b> ${esc(fuelCity(c).t)}</p>`;
   if(on('c5')){const r=[...c.hist.week].sort((a,b)=>b.dur-a.dur)[0]; b+=`<p><b>Рекорд недели:</b> ${esc(r.street)}, ${r.date.split(',')[0]} — ${dur(r.dur)}.</p>`}
   if(!b) b='<p class="muted">Отметьте хотя бы один пункт, чтобы письмо было не пустым.</p>';
   $('mail').innerHTML = `<div class="mail-h"><span class="muted">Кому: ${esc($('subEmail').value||'—')} · ${esc(freq.toLowerCase())}</span><b>Пробки, ${c.name}, ${hhmm(SNAP)}: ${c.score} ${balls(c.score)}</b></div><div class="mail-b">${b}<p class="muted" style="font-size:12px">Можно цитировать со ссылкой на 2ГИС. Отписаться — в настройках подписки.</p></div>`;
 }
 
-function renderAll(){renderCitySel();renderHero();renderEvents();renderChart();renderTop();renderGroups();renderAtyp();renderHist();renderPhotos();renderApi();renderMail()}
+function renderAll(){renderCitySel();renderHero();renderEvents();renderFuel();renderChart();renderTop();renderGroups();renderAtyp();renderHist();renderPhotos();renderApi();renderMail()}
 
 // интерактив
 let toastT;
@@ -797,6 +877,7 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.c){city=b.dataset.c;stopSpeak();renderAll()}
   else if(b.dataset.f){fmt=b.dataset.f;stopSpeak();renderScript()}
+  else if(b.dataset.fuel!==undefined){const c=C();copy(b.dataset.fuel==='city'?fuelCity(c).t:fuelPhrase(c.fuel[+b.dataset.fuel]))}
   else if(b.dataset.ev){evFilter=b.dataset.ev;renderEvents()}
   else if(b.dataset.evcopy!==undefined){const c=C();copy(evPhrase(b.dataset.evcopy==='main'?mainEvent(c):c.events[+b.dataset.evcopy]))}
   else if(b.dataset.p){period=b.dataset.p;renderHist()}
@@ -821,7 +902,7 @@ if('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window){
   };
 }
 
-['subEmail','subFreq','c0','c1','c2','c3','c4','c5','c6'].forEach(id=>$(id).addEventListener('input',renderMail));
+['subEmail','subFreq','c0','c1','c2','c3','c4','c5','c6','c7'].forEach(id=>$(id).addEventListener('input',renderMail));
 $('subForm').addEventListener('submit',e=>{
   e.preventDefault(); const m=$('subEmail').value.trim(), ok=$('subOk');
   ok.hidden=false;
