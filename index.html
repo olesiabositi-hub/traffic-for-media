@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Пробки для эфира</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: пульт эфирной смены — сводка и готовый текст сверху, детали ниже, всё сканируется за 10 секунд */
+:root{
+  --bg:#EDF0F4; --surface:#FFFFFF; --sunk:#E3E8EE; --ink:#121A24; --muted:#5A6576; --line:#D3DAE3;
+  --accent:#2F43C9; --accent-soft:#E2E6FB; --on-accent:#FFFFFF;
+  --ok:#1E9A53; --warn:#C99600; --bad:#E0532B; --crit:#B8132F;
+  --f-display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E131A; --surface:#161D27; --sunk:#1D2632; --ink:#E7ECF2; --muted:#94A0B2; --line:#2A3443;
+  --accent:#8E9CFF; --accent-soft:#232B52; --on-accent:#0E131A;
+  --ok:#3CC47A; --warn:#EFC04A; --bad:#FF7B52; --crit:#FF4F6B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E131A; --surface:#161D27; --sunk:#1D2632; --ink:#E7ECF2; --muted:#94A0B2; --line:#2A3443;
+  --accent:#8E9CFF; --accent-soft:#232B52; --on-accent:#0E131A;
+  --ok:#3CC47A; --warn:#EFC04A; --bad:#FF7B52; --crit:#FF4F6B; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;text-wrap:balance;margin:0;letter-spacing:-.01em}
+h2{font-size:22px}
+h3{font-size:15px}
+p{margin:0}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--f-mono)}
+.label{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);
+  margin-left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));margin-right:calc(-1 * max(16px,env(safe-area-inset-right,0px)));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.bar-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:12px}
+.brand{font-family:var(--f-display);font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px}
+.onair{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:var(--muted)}
+.onair i{width:7px;height:7px;border-radius:50%;background:var(--crit);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.25}}
+.bar .sp{flex:1}
+.citysel{display:flex;gap:4px;background:var(--sunk);border-radius:10px;padding:3px}
+.citysel button,.seg button{border:0;background:transparent;padding:6px 12px;border-radius:8px;cursor:pointer;font-weight:500;color:var(--muted)}
+.citysel button[aria-pressed="true"],.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.upd{font-size:13px;color:var(--muted)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:24px;padding-top:28px}
+.scorebox{display:flex;flex-direction:column;gap:14px}
+.scorebox .where{font-size:15px;color:var(--muted)}
+.scoreline{display:flex;align-items:flex-end;gap:14px}
+.bignum{font-family:var(--f-display);font-weight:700;font-size:112px;line-height:.85;letter-spacing:-.04em}
+.bignum-u{font-family:var(--f-display);font-size:20px;font-weight:500;padding-bottom:8px}
+.segs{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;max-width:420px}
+.segs span{height:12px;border-radius:2px;background:var(--sunk)}
+.cmp{font-size:16px}
+.cmp b{font-weight:600}
+.ready{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.ready-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ready-head .sp{flex:1}
+.seg{display:inline-flex;gap:2px;background:var(--sunk);border-radius:10px;padding:3px;flex-wrap:wrap}
+.seg button{padding:5px 10px;font-size:13px}
+.script{font-size:19px;line-height:1.55;min-height:6em;white-space:pre-line}
+.script-meta{font-size:12px;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:8px 14px;cursor:pointer;font-weight:500;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:4px}
+.stat .v{font-family:var(--f-display);font-weight:700;font-size:30px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat .d{font-size:13px;color:var(--muted)}
+
+section{display:flex;flex-direction:column;gap:16px}
+.sec-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sec-head p{color:var(--muted);font-size:14px;flex-basis:100%;max-width:70ch}
+.sec-head .sp{flex:1}
+.tag{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:6px;background:var(--accent-soft);color:var(--accent)}
+
+/* chart */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+.chart-wrap{overflow-x:auto}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:14px;height:10px;border-radius:2px}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-variant-numeric:tabular-nums}
+th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+.st{font-weight:600}
+.segtxt{color:var(--muted);font-size:13px}
+.pill{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:24px;padding:0 7px;border-radius:6px;font-weight:700;font-size:13px;color:#fff;font-family:var(--f-mono)}
+.detour{font-size:13px}
+.detour b{color:var(--ok);font-weight:600}
+.rank{font-family:var(--f-mono);color:var(--muted)}
+
+/* points */
+.groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.group{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.pt{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;font-size:14px}
+.pt .s{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.trend{font-size:12px;font-family:var(--f-mono)}
+
+/* atypical */
+.atyp{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.acard{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.acard .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cause{font-size:12px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--sunk)}
+.acard .facts{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.acard .usual{font-size:13px}
+
+/* history */
+.hist-ctl{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.record{background:var(--accent-soft);border-radius:12px;padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.record p{flex:1;min-width:240px;font-size:15px}
+.note{display:inline-block;font-size:12px;color:var(--muted);font-style:italic}
+
+/* photos */
+.photos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.photo{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.photo svg{display:block;width:100%;height:auto;aspect-ratio:4/3;max-width:100%}
+.photo .cap{padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.photo .cap b{font-size:14px}
+
+/* usp */
+.usp{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.ucard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.ucard .row{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.ucard p{font-size:14px;color:var(--muted)}
+.st-done{font-size:11px;font-weight:600;color:var(--ok);white-space:nowrap}
+.st-idea{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
+
+/* code */
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+pre{margin:0;background:var(--sunk);border-radius:10px;padding:14px;overflow:auto;font-family:var(--f-mono);font-size:12.5px;line-height:1.55;max-height:340px}
+
+/* subscribe */
+.sub{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:12px}
+form{display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>label,.field>.label{font-size:13px;font-weight:600;color:var(--ink);text-transform:none;letter-spacing:0}
+input[type=email],select{border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:9px 11px;width:100%}
+.checks{display:flex;flex-direction:column;gap:6px;font-size:14px}
+.checks label{display:flex;gap:8px;align-items:flex-start}
+.mail{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.mail-h{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px;font-size:13px}
+.mail-h b{font-size:15px}
+.mail-b{padding:18px;display:flex;flex-direction:column;gap:12px;font-size:14px}
+.mail-b ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.ok-msg{font-size:14px;color:var(--ok);font-weight:600}
+
+footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.toast.show{opacity:1}
+
+@media (max-width:900px){
+  .hero,.sub,.two{grid-template-columns:minmax(0,1fr)}
+  .groups,.photos{grid-template-columns:minmax(0,1fr)}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bignum{font-size:88px}
+}
+@media (prefers-reduced-motion:reduce){.onair i{animation:none}*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="bar"><div class="bar-in">
+  <div class="brand">Пробки для эфира <span class="onair"><i></i>Обновляется</span></div>
+  <div class="sp"></div>
+  <div class="citysel" id="citysel" role="group" aria-label="Город"></div>
+  <span class="upd" id="upd"></span>
+</div></div>
+
+<main class="wrap">
+
+  <div class="hero">
+    <div class="scorebox">
+      <div class="where" id="where"></div>
+      <div class="scoreline"><div class="bignum num" id="score"></div><div class="bignum-u" id="scoreU"></div></div>
+      <div class="segs" id="segs" aria-hidden="true"></div>
+      <p class="cmp" id="cmp"></p>
+    </div>
+    <div class="ready">
+      <div class="ready-head">
+        <h3>Готовый текст</h3>
+        <div class="sp"></div>
+        <div class="seg" id="fmtSeg" role="group" aria-label="Формат текста"></div>
+      </div>
+      <p class="script" id="script"></p>
+      <div class="script-meta" id="scriptMeta"></div>
+      <div class="actions">
+        <button class="btn primary" id="copyScript">Скопировать</button>
+        <button class="btn" id="speak" hidden>Прослушать</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <section>
+    <div class="sec-head"><h2>Загруженность за день</h2><span class="tag">Прогноз</span>
+      <p>Баллы по часам: сегодня, обычный такой же день недели и прогноз до конца дня.</p></div>
+    <div class="panel">
+      <div class="chart-wrap" id="chart"></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Сегодня</span><span><i style="background:var(--accent);opacity:.35"></i>Прогноз</span><span><i style="height:2px;background:var(--ink)"></i>Обычный день</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Крупнейшие пробки сейчас</h2>
+      <p>Топ-10 по длине. Для каждой: участок, скорость потока, время проезда и объезд, если он есть.</p></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>#</th><th>Улица и участок</th><th class="r">Скорость</th><th class="r">Длина</th><th class="r">Проезд</th><th class="r">Баллы</th><th>Как объехать</th></tr></thead>
+      <tbody id="top"></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Мосты, центр и главные улицы</h2>
+      <p>Список ключевых мест задаётся для каждого города один раз. Стрелка показывает, как изменилось за последние 15 минут.</p></div>
+    <div class="groups" id="groups"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Нетипичные пробки</h2>
+      <p>Там, где в это время обычно свободно. С причиной: ДТП, ремонт, затопление, снег и лёд.</p></div>
+    <div class="atyp" id="atyp"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>История и рекорды</h2>
+      <p>Крупнейшие пробки за период. Сортировка по длине, продолжительности, скорости потока и баллам на участке.</p></div>
+    <div class="hist-ctl">
+      <div class="seg" id="perSeg" role="group" aria-label="Период"></div>
+      <div class="seg" id="sortSeg" role="group" aria-label="Сортировка"></div>
+    </div>
+    <div class="record"><p id="recordTxt"></p><button class="btn" id="copyRecord">Скопировать</button></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Когда</th><th>Улица и участок</th><th class="r">Длина</th><th class="r">Держалась</th><th class="r">Скорость</th><th class="r">Баллы</th></tr></thead>
+      <tbody id="hist"></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Фото с дорог</h2><span class="tag">Только у нас</span>
+      <p>Снимки, которые пользователи навигатора публикуют прямо из пробки. Редакция берёт фото с готовой подписью и ссылкой на источник. В прототипе вместо фото — иллюстрации.</p></div>
+    <div class="photos" id="photos"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Чем мы лучше конкурента</h2>
+      <p>Базовый минимум закрыт. Ниже то, что даёт редакциям повод перейти на наши данные.</p></div>
+    <div class="usp" id="usp"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Виджет и API для редакций</h2>
+      <p>Сайт СМИ ставит виджет одной строкой, а радиостанция забирает текст по API прямо в эфирную программу.</p></div>
+    <div class="two">
+      <div class="panel" style="display:flex;flex-direction:column;gap:10px;min-width:0">
+        <div class="label">Код виджета</div><pre id="embed"></pre>
+        <div><button class="btn" id="copyEmbed">Скопировать код</button></div>
+      </div>
+      <div class="panel" style="display:flex;flex-direction:column;gap:10px;min-width:0">
+        <div class="label mono">GET /api/v1/cities/<span id="apiCity"></span>/now</div><pre id="api"></pre>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Подписка на сводку</h2>
+      <p>Редакция выбирает частоту и содержание, а сводка приходит сама. Справа — как выглядит письмо.</p></div>
+    <div class="sub">
+      <div class="panel">
+        <form id="subForm" novalidate>
+          <div class="field"><label for="subEmail">Почта редакции</label><input type="email" id="subEmail" placeholder="news@radio-city.ru" value="efir@radio-sibir.ru"></div>
+          <div class="field"><label for="subFreq">Как часто</label>
+            <select id="subFreq">
+              <option value="15">Каждые 15 минут в часы пик</option>
+              <option value="60" selected>Каждый час</option>
+              <option value="2x">Утром в 07:30 и вечером в 17:30</option>
+              <option value="1x">Раз в день, итоги в 21:00</option>
+            </select></div>
+          <div class="field"><span class="label">Что включить</span>
+            <div class="checks">
+              <label><input type="checkbox" id="c1" checked> Готовый текст на 30 секунд</label>
+              <label><input type="checkbox" id="c2" checked> Топ-5 пробок с объездами</label>
+              <label><input type="checkbox" id="c3" checked> Нетипичные пробки</label>
+              <label><input type="checkbox" id="c4"> Фото с дорог</label>
+              <label><input type="checkbox" id="c5"> Рекорды недели</label>
+            </div></div>
+          <div class="checks"><label><input type="checkbox" id="c6" checked> Сразу сообщать о ДТП и нетипичных пробках</label></div>
+          <div class="actions"><button class="btn primary" type="submit">Подписаться</button></div>
+          <p class="ok-msg" id="subOk" hidden></p>
+        </form>
+      </div>
+      <div class="mail" id="mail"></div>
+    </div>
+  </section>
+
+  <footer>Прототип для хакатона. Все цифры, улицы и фото демонстрационные и не отражают реальную ситуацию на дорогах.</footer>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const SNAP = 8*60+45; // время снимка данных, 08:45
+const pad = n => String(n).padStart(2,'0');
+const hhmm = m => pad(Math.floor(m/60))+':'+pad(m%60);
+const toMin = s => {const [h,m]=s.split(':').map(Number);return h*60+m};
+function plural(n,a,b,c){n=Math.abs(n)%100;const d=n%10;if(n>10&&n<20)return c;if(d>1&&d<5)return b;if(d===1)return a;return c}
+const balls = n => plural(n,'балл','балла','баллов');
+const km = n => n.toFixed(1).replace('.',',');
+function dur(min){min=Math.round(min);const h=Math.floor(min/60),m=min%60;const p=[];
+  if(h)p.push(h+' '+plural(h,'час','часа','часов'));if(m||!h)p.push(m+' '+plural(m,'минута','минуты','минут'));return p.join(' ')}
+function durAcc(min){return min+' '+plural(min,'минуту','минуты','минут')}
+function shortDur(min){min=Math.round(min);const h=Math.floor(min/60),m=min%60;return h?`${h} ч ${pad(m)} мин`:`${m} мин`}
+const travel = j => j.len/j.speed*60;
+const scoreColor = s => s>=8?'var(--crit)':s>=6?'var(--bad)':s>=4?'var(--warn)':'var(--ok)';
+const pill = s => `<span class="pill" style="background:${scoreColor(s)}">${s}</span>`;
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const TODAY = new Date();
+const MONTHS=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const WD_DAT=['воскресеньям','понедельникам','вторникам','средам','четвергам','пятницам','субботам'];
+const WD_NOM=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+const dateStr = `${TODAY.getDate()} ${MONTHS[TODAY.getMonth()]}`;
+
+// [улица, участок, скорость, длина, баллы, начало, объезд?]
+const CITIES = {
+  nsk:{
+    id:'nsk', name:'Новосибирск', gen:'Новосибирске', score:8, typical:7, roadKm:840, lostK:41,
+    hourly:[1,0,0,0,0,1,4,7,8, 8,6,5,5,5,5,6,7,8,8,6,4,3,2,1],
+    typicalH:[1,0,0,0,0,1,3,6,7,6,5,5,5,5,5,6,7,8,8,6,4,3,2,1],
+    jams:[
+      ['Бердское шоссе','от разъезда Иня до Речного вокзала',5,17.2,9,'06:50',{via:'по ул. Выборной',save:22}],
+      ['Мочищенское шоссе','от Объездной до ул. Жуковского',9,5.4,7,'07:25',null],
+      ['Красный проспект','от пл. Калинина до пл. Ленина',11,4.6,7,'07:40',{via:'по ул. Ипподромской',save:6}],
+      ['ул. Большевистская','от ул. Ленинградской до Октябрьского моста',7,3.9,8,'07:30',null],
+      ['ул. Немировича-Данченко','от пл. Труда до Бугринского моста',10,3.4,7,'07:45',null],
+      ['Октябрьский мост','от левобережной развязки до ул. Большевистской',4,3.1,10,'07:20',{via:'по Бугринскому мосту',save:19}],
+      ['Димитровский мост','от ул. Станиславского до пр. Димитрова',8,2.8,8,'07:35',{via:'по Бугринскому мосту',save:9}],
+      ['ул. Станционная','от пл. Кирова до Хилокской ул.',12,2.7,6,'07:55',null],
+      ['Ипподромская ул.','от ул. Кирова до ул. Гоголя',13,2.2,6,'08:05',null],
+      ['ул. Дуси Ковальчук','от ул. Нарымской до Красного пр.',14,1.9,6,'08:10',null]
+    ],
+    atyp:[
+      ['ул. Ватутина','от ул. Новосибирской до пл. Труда',6,2.4,7,'08:20','ДТП','столкновение трёх автомобилей в правом ряду',2],
+      ['ул. Петухова','от ул. Сибиряков-Гвардейцев до ул. Зорге',8,1.8,6,'08:05','Затопление','прорыв водопровода, вода на проезжей части',2],
+      ['Морской проспект','от ул. Ильича до ул. Терешковой',12,1.5,5,'07:50','Снег и гололёд','первый снег, гололёд на подъёме',1],
+      ['ул. Фрунзе','от ул. Ольги Жилиной до ул. Кошурникова',9,1.3,5,'08:15','Дорожные работы','ремонт теплотрассы, сужение до одной полосы',2],
+      ['Толмачёвское шоссе','от Хилокской ул. до ул. Пермской',15,2.1,5,'08:00','Иная причина','закрыт железнодорожный переезд',3]
+    ],
+    groups:[
+      ['Мосты через Обь',[['Октябрьский мост',10,4,1],['Димитровский мост',8,8,1],['Бугринский мост',5,27,0],['Коммунальный мост',6,19,-1]]],
+      ['Центр',[['Красный проспект',7,11,0],['пл. Ленина',7,12,1],['Вокзальная магистраль',6,16,0],['ул. Гоголя',5,21,-1]]],
+      ['Магистрали',[['Бердское шоссе',9,5,1],['ул. Большевистская',8,7,0],['ул. Кирова',6,17,-1],['Мочищенское шоссе',7,9,0]]]
+    ],
+    // когда, время, улица, участок, длина, длилась(мин), скорость, баллы, заметка
+    hist:{
+      week:[
+        ['21 окт, ср','08:05','Бердское шоссе','от Матвеевки до Речного вокзала',14.6,128,6,9],
+        ['20 окт, вт','18:20','Октябрьский мост','от ул. Большевистской до левобережной развязки',3.4,155,3,10],
+        ['19 окт, пн','17:50','ул. Большевистская','от ул. Ленинградской до Октябрьского моста',5.1,96,5,8],
+        ['18 окт, вс','15:10','Мочищенское шоссе','от Объездной до ул. Жуковского',6.8,74,9,7,'возвращение с дач'],
+        ['17 окт, сб','13:30','Красный проспект','от пл. Калинина до пл. Ленина',4.2,62,10,7],
+        ['16 окт, пт','17:40','Димитровский мост','от ул. Станиславского до пр. Димитрова',3.0,140,4,9],
+        ['16 окт, пт','18:05','Бугринский мост','от ул. Широкой до ул. Большевистской',4.4,88,7,8]
+      ],
+      month:[
+        ['14 окт, ср','08:10','Бердское шоссе','от разъезда Иня до Речного вокзала',18.9,165,4,10],
+        ['2 окт, пт','17:30','Октябрьский мост','от левобережной развязки до ул. Большевистской',4.9,210,2,10,'первый снег'],
+        ['25 сен, пт','18:00','Димитровский мост','от ул. Станиславского до пр. Димитрова',3.6,175,3,10],
+        ['7 окт, ср','08:20','Мочищенское шоссе','от Объездной до ул. Жуковского',9.2,120,6,8],
+        ['30 сен, ср','17:45','ул. Кирова','от ул. Восход до Октябрьской магистрали',3.9,110,5,8],
+        ['9 окт, пт','18:15','Толмачёвское шоссе','от Хилокской ул. до ул. Пермской',7.7,95,8,7]
+      ],
+      year:[
+        ['14 янв, ср','08:00','Бердское шоссе','от Матвеевки до Речного вокзала',21.4,240,3,10,'мороз −38 °C, заглохшие машины'],
+        ['26 дек 2025, пт','17:20','Октябрьский мост','от ул. Большевистской до левобережной развязки',5.6,290,2,10,'предновогодний вечер'],
+        ['28 апр, вт','18:00','Димитровский мост','от ул. Станиславского до пр. Димитрова',3.8,205,3,10,'перекрытие Коммунального моста'],
+        ['30 мая, сб','14:00','Мочищенское шоссе','от Объездной до ул. Жуковского',12.5,180,5,9,'выезд на дачи'],
+        ['1 сен, вт','08:15','Красный проспект','от пл. Калинина до пл. Ленина',5.0,150,6,9,'первое сентября'],
+        ['2 окт, пт','17:30','Октябрьский мост','от левобережной развязки до ул. Большевистской',4.9,210,2,10,'первый снег']
+      ]
+    },
+    photos:[
+      ['Октябрьский мост','08:31','@sasha_nsk','dawn','Съезд на Большевистскую, стоим 20 минут',7],
+      ['Бердское шоссе, у Речного вокзала','08:12','@m.orlova','dawn','Пробка от самой Ини',3],
+      ['ул. Ватутина, место ДТП','08:40','@driver54','snow','Три машины в правом ряду, ДПС на месте',11]
+    ]
+  },
+  ekb:{
+    id:'ekb', name:'Екатеринбург', gen:'Екатеринбурге', score:6, typical:7, roadKm:910, lostK:33,
+    hourly:[1,0,0,0,0,1,3,6,7, 6,5,4,4,4,5,6,7,8,8,6,4,2,1,1],
+    typicalH:[1,0,0,0,0,1,4,7,8,7,5,5,5,5,5,6,7,8,8,6,4,3,2,1],
+    jams:[
+      ['Сибирский тракт','от ЕКАД до ул. Куйбышева',12,7.8,7,'07:15',null],
+      ['ул. Малышева','от ул. Восточной до ул. 8 Марта',9,3.6,8,'07:50',{via:'по ул. Куйбышева',save:7}],
+      ['ул. Белинского','от ул. Щорса до ул. Малышева',13,3.2,6,'08:05',null],
+      ['ул. Металлургов','от ул. Крауля до ул. Викулова',11,3.0,6,'07:55',null],
+      ['ул. Щербакова','от ул. Белинского до Сибирского тракта',8,2.4,7,'07:35',null],
+      ['пр. Ленина','от ул. Луначарского до ул. Карла Либкнехта',10,2.1,6,'08:10',null],
+      ['ул. Серафимы Дерябиной','от ул. Волгоградской до ул. Ясной',14,2.0,5,'08:20',null],
+      ['Макаровский мост','от ул. Челюскинцев до ул. Свердлова',6,1.4,8,'07:40',{via:'через ул. Николая Никонова',save:5}]
+    ],
+    atyp:[
+      ['ул. Фронтовых Бригад','от ул. Шефской до ул. Восстания',8,2.2,7,'08:15','Дорожные работы','замена трамвайных путей',2],
+      ['ул. Ткачей','от ул. Шейнкмана до ул. Белинского',7,1.6,6,'08:25','ДТП','столкновение двух автомобилей',3]
+    ],
+    groups:[
+      ['Центр',[['пр. Ленина',6,10,0],['ул. Малышева',8,9,1],['ул. 8 Марта',6,15,0],['ул. Куйбышева',5,20,-1]]],
+      ['Мосты и развязки',[['Макаровский мост',8,6,1],['ЕКАД — Сибирский тракт',7,12,0],['Развязка у Кольцово',4,31,-1]]],
+      ['Магистрали',[['Сибирский тракт',7,12,0],['ул. Металлургов',6,11,0],['ул. Щербакова',7,8,1],['ЕКАД',4,38,-1]]]
+    ],
+    hist:{
+      week:[
+        ['21 окт, ср','18:10','Сибирский тракт','от ЕКАД до ул. Куйбышева',9.4,118,6,8],
+        ['20 окт, вт','08:15','ул. Малышева','от ул. Восточной до ул. 8 Марта',4.0,102,6,8],
+        ['16 окт, пт','17:50','Макаровский мост','от ул. Челюскинцев до ул. Свердлова',1.8,135,4,9],
+        ['18 окт, вс','16:20','ЕКАД','от Сибирского тракта до Новомосковского тракта',11.2,70,14,6,'возвращение с дач'],
+        ['15 окт, чт','18:30','ул. Щербакова','от ул. Белинского до Сибирского тракта',2.9,90,6,7]
+      ],
+      month:[
+        ['2 окт, пт','17:40','Сибирский тракт','от ЕКАД до ул. Куйбышева',11.6,195,4,10,'первый снег'],
+        ['29 сен, вт','08:00','ул. Металлургов','от ул. Крауля до ул. Викулова',5.2,120,5,8],
+        ['8 окт, чт','18:00','Макаровский мост','от ул. Челюскинцев до ул. Свердлова',2.1,160,3,9],
+        ['13 окт, вт','17:30','ул. Малышева','от ул. Восточной до ул. 8 Марта',4.3,115,5,8]
+      ],
+      year:[
+        ['27 дек 2025, сб','16:00','Сибирский тракт','от ЕКАД до ул. Куйбышева',13.8,260,3,10,'предновогодние покупки'],
+        ['9 мая, сб','11:00','пр. Ленина','от ул. Луначарского до ул. Карла Либкнехта',3.5,240,2,10,'перекрытия на парад'],
+        ['2 окт, пт','17:40','Сибирский тракт','от ЕКАД до ул. Куйбышева',11.6,195,4,10,'первый снег'],
+        ['1 сен, вт','08:10','ул. Малышева','от ул. Восточной до ул. 8 Марта',4.6,145,4,9,'первое сентября']
+      ]
+    },
+    photos:[
+      ['Сибирский тракт, у ЕКАД','08:22','@ural_driver','dawn','Встали на въезде в город',5],
+      ['ул. Фронтовых Бригад','08:33','@katya.ekb','day','Ремонт путей, одна полоса',9],
+      ['Макаровский мост','08:38','@pavel66','snow','Мост стоит в обе стороны',13]
+    ]
+  }
+};
+// нормализация
+for(const c of Object.values(CITIES)){
+  c.jams = c.jams.map(a=>({street:a[0],seg:a[1],speed:a[2],len:a[3],score:a[4],start:a[5],alt:a[6]})).sort((x,y)=>y.len-x.len);
+  c.atyp = c.atyp.map(a=>({street:a[0],seg:a[1],speed:a[2],len:a[3],score:a[4],start:a[5],cause:a[6],why:a[7],usual:a[8]}));
+  for(const k in c.hist) c.hist[k]=c.hist[k].map(a=>({date:a[0],time:a[1],street:a[2],seg:a[3],len:a[4],dur:a[5],speed:a[6],score:a[7],note:a[8]||''}));
+  c.hist.today=[...c.jams,...c.atyp].map(j=>({date:'сегодня',time:j.start,street:j.street,seg:j.seg,len:j.len,dur:SNAP-toMin(j.start),speed:j.speed,score:j.score,note:j.cause?j.cause:''}));
+  c.totalKm = c.jams.reduce((s,j)=>s+j.len,0)+c.atyp.reduce((s,j)=>s+j.len,0)+62;
+}
+
+let city='nsk', fmt='short', period='today', sortKey='len';
+const $ = id => document.getElementById(id);
+const C = () => CITIES[city];
+
+function cmpPhrase(c){
+  const d=c.score-c.typical, wd=WD_DAT[TODAY.getDay()];
+  if(d>0) return `на ${d} ${balls(d)} больше, чем обычно по ${wd}`;
+  if(d<0) return `на ${-d} ${balls(-d)} меньше, чем обычно по ${wd}`;
+  return `как обычно по ${wd}`;
+}
+const pct = c => Math.round(c.totalKm/c.roadKm*100);
+const forecastHour = () => Math.floor(SNAP/60)+2;
+const worstAlt = c => [...c.jams].filter(j=>j.alt).sort((a,b)=>b.score-a.score||b.len-a.len)[0];
+
+const FORMATS = {
+  short:{label:'10 секунд', make(c){const j=worstAlt(c);
+    return `По данным 2ГИС, в ${c.gen} ${c.score} ${balls(c.score)}. ${j.street} стоит в плотной пробке, лучше ехать ${j.alt.via}.`}},
+  half:{label:'30 секунд', make(c){
+    const [a,b]=c.jams, j=worstAlt(c), x=c.atyp[0], fh=forecastHour(), fs=c.hourly[fh];
+    let t=`По данным 2ГИС, в ${c.gen} сейчас ${c.score} ${balls(c.score)}, ${cmpPhrase(c)}. Общая протяжённость пробок — ${km(c.totalKm)} км, это ${pct(c)}% дорог города. `;
+    t+=`Самая длинная пробка — ${a.street}, ${a.seg}: ${km(a.len)} км, скорость ${a.speed} км/ч, проезд займёт ${dur(travel(a))}. `;
+    t+=`${b.street}, ${b.seg} — ${km(b.len)} км, ${dur(travel(b))}. `;
+    if(j) t+=`${j.street} стоит, ${j.alt.via} быстрее примерно на ${durAcc(j.alt.save)}. `;
+    if(x) t+=`Внимание: ${x.street}, ${x.seg} — ${x.why}. `;
+    t+=`К ${pad(fh)}:00 ожидается ${fs} ${balls(fs)}.`;
+    return t}},
+  news:{label:'Новость', make(c){
+    const a=c.jams[0], x=c.atyp[0];
+    return `Пробки в ${c.gen} ${dateStr}: ${c.score} ${balls(c.score)}, ${a.street} — ${km(a.len)} км\n\n`+
+      `Утром ${dateStr} загруженность дорог в ${c.gen} достигла ${c.score} ${balls(c.score)}, ${cmpPhrase(c)}, сообщает 2ГИС. Пробки растянулись на ${km(c.totalKm)} км — ${pct(c)}% дорог города. `+
+      `Самый длинный затор — ${a.street} (${a.seg}): ${km(a.len)} км при скорости ${a.speed} км/ч. `+
+      (x?`Нетипичная пробка — ${x.street}, причина: ${x.why}.`:'')}},
+  post:{label:'Пост', make(c){
+    const t=c.jams.slice(0,4).map(j=>`— ${j.street}: ${km(j.len)} км, ${shortDur(travel(j))}`).join('\n');
+    const j=worstAlt(c);
+    return `${c.name}, ${hhmm(SNAP)}. Пробки ${c.score} ${balls(c.score)}.\n\n${t}\n\n${j?`Совет: ${j.street.toLowerCase().startsWith('ул')?j.street:j.street} лучше объехать ${j.alt.via}.\n`:''}Данные 2ГИС`}}
+};
+
+function renderCitySel(){
+  $('citysel').innerHTML = Object.values(CITIES).map(c=>`<button aria-pressed="${c.id===city}" data-c="${c.id}">${c.name}</button>`).join('');
+}
+function renderSeg(el, items, cur, attr){
+  el.innerHTML = items.map(([k,l])=>`<button aria-pressed="${k===cur}" data-${attr}="${k}">${l}</button>`).join('');
+}
+
+function renderHero(){
+  const c=C();
+  $('where').textContent = `${c.name} · ${WD_NOM[TODAY.getDay()]}, ${dateStr}, ${hhmm(SNAP)}`;
+  $('score').textContent = c.score; $('score').style.color = scoreColor(c.score);
+  $('scoreU').textContent = balls(c.score);
+  $('segs').innerHTML = Array.from({length:10},(_,i)=>`<span style="${i<c.score?`background:${scoreColor(c.score)}`:''}"></span>`).join('');
+  const fh=forecastHour();
+  $('cmp').innerHTML = `<b>${cmpPhrase(c)[0].toUpperCase()+cmpPhrase(c).slice(1)}.</b> К ${pad(fh)}:00 станет ${c.hourly[fh]} ${balls(c.hourly[fh])}.`;
+  renderScript();
+  $('stats').innerHTML = [
+    [km(c.totalKm)+' км','Общая длина пробок'],
+    [pct(c)+'%','Дорог города в пробках'],
+    [c.jams.length+c.atyp.length,'Пробок, из них '+c.atyp.length+' нетипичных'],
+    ['≈ '+c.lostK+' тыс. ч','Горожане простояли с утра (оценка)']
+  ].map(([v,d])=>`<div class="stat"><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+}
+function renderScript(){
+  const c=C(), t=FORMATS[fmt].make(c);
+  $('script').textContent=t;
+  const words=t.split(/\s+/).length;
+  $('scriptMeta').textContent = `${words} слов · около ${Math.max(5,Math.round(words/2.3))} секунд в эфире · источник указан в тексте`;
+  renderSeg($('fmtSeg'), Object.entries(FORMATS).map(([k,v])=>[k,v.label]), fmt, 'f');
+}
+
+function renderChart(){
+  const c=C(), W=720, H=210, L=28, B=26, T=10, cw=(W-L-6)/24, y=v=>H-B-(v/10)*(H-B-T), nowH=Math.floor(SNAP/60);
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:560px" role="img" aria-label="Баллы по часам">`;
+  s+=`<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="var(--accent)" opacity=".18"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--accent)" stroke-width="2" opacity=".45"/></pattern></defs>`;
+  for(const v of [0,2,4,6,8,10]){s+=`<line x1="${L}" x2="${W-4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="JetBrains Mono,monospace">${v}</text>`}
+  c.hourly.forEach((v,h)=>{const x=L+h*cw+3,w=cw-6;
+    s+=`<rect x="${x}" y="${y(v)}" width="${w}" height="${Math.max(0,y(0)-y(v))}" rx="2" fill="${h<=nowH?'var(--accent)':'url(#hatch)'}"/>`;
+    if(h%3===0) s+=`<text x="${x+w/2}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="JetBrains Mono,monospace">${pad(h)}</text>`;});
+  const pts=c.typicalH.map((v,h)=>`${L+h*cw+cw/2},${y(v)}`).join(' ');
+  s+=`<polyline points="${pts}" fill="none" stroke="var(--ink)" stroke-width="1.6" stroke-dasharray="4 3"/>`;
+  const nx=L+(SNAP/60)*cw;
+  s+=`<line x1="${nx}" x2="${nx}" y1="${T}" y2="${H-B}" stroke="var(--crit)" stroke-width="1.5"/><text x="${nx+5}" y="${T+10}" font-size="11" fill="var(--crit)" font-family="JetBrains Mono,monospace">сейчас</text>`;
+  $('chart').innerHTML = s+'</svg>';
+}
+
+function renderTop(){
+  $('top').innerHTML = C().jams.slice(0,10).map((j,i)=>`<tr>
+    <td class="rank">${i+1}</td>
+    <td><div class="st">${esc(j.street)}</div><div class="segtxt">${esc(j.seg)}</div></td>
+    <td class="r">${j.speed} км/ч</td><td class="r">${km(j.len)} км</td><td class="r">${shortDur(travel(j))}</td>
+    <td class="r">${pill(j.score)}</td>
+    <td class="detour">${j.alt?`${esc(j.alt.via)}, <b>−${j.alt.save} мин</b>`:'<span class="muted">—</span>'}</td></tr>`).join('');
+}
+function renderGroups(){
+  $('groups').innerHTML = C().groups.map(([g,items])=>`<div class="group"><div class="label">${g}</div>${items.map(([n,s,sp,tr])=>
+    `<div class="pt">${pill(s)}<span>${esc(n)}</span><span class="s">${sp} км/ч <span class="trend" style="color:${tr>0?'var(--bad)':tr<0?'var(--ok)':'var(--muted)'}">${tr>0?'↑':tr<0?'↓':'→'}</span></span></div>`).join('')}</div>`).join('');
+}
+function renderAtyp(){
+  $('atyp').innerHTML = C().atyp.slice(0,5).map(a=>`<div class="acard" style="border-left-color:${scoreColor(a.score)}">
+    <div class="row">${pill(a.score)}<span class="cause">${a.cause}</span><span class="muted" style="font-size:12px">с ${a.start}</span></div>
+    <div><div class="st">${esc(a.street)}</div><div class="segtxt">${esc(a.seg)}</div></div>
+    <div class="usual">${esc(a.why[0].toUpperCase()+a.why.slice(1))}. Обычно здесь в это время ${a.usual} ${balls(a.usual)}.</div>
+    <div class="facts">${a.speed} км/ч · ${km(a.len)} км · проезд ${shortDur(travel(a))}</div></div>`).join('') || '<p class="muted">Нетипичных пробок сейчас нет.</p>';
+}
+
+const PERIODS=[['today','Сегодня'],['week','Неделя'],['month','Месяц'],['year','Год']];
+const SORTS=[['len','Самые длинные'],['dur','Самые долгие'],['speed','Самые медленные'],['score','Самые тяжёлые']];
+const PER_GEN={today:'сегодня',week:'недели',month:'месяца',year:'года'};
+function sorted(){
+  const rows=[...C().hist[period]];
+  const f={len:(a,b)=>b.len-a.len,dur:(a,b)=>b.dur-a.dur,speed:(a,b)=>a.speed-b.speed||b.len-a.len,score:(a,b)=>b.score-a.score||b.dur-a.dur}[sortKey];
+  return rows.sort(f);
+}
+function recordText(r){
+  const when = period==='today'?'сегодня':r.date.split(',')[0];
+  const per = period==='today'?'дня':PER_GEN[period];
+  const c=C();
+  const lead = {len:`Самая длинная пробка ${per} в ${c.gen}`,dur:`Самая долгая пробка ${per} в ${c.gen}`,speed:`Самая медленная пробка ${per} в ${c.gen}`,score:`Самая тяжёлая пробка ${per} в ${c.gen}`}[sortKey];
+  const fact = {len:`${km(r.len)} км`,dur:`держалась ${dur(r.dur)}`,speed:`поток двигался со скоростью ${r.speed} км/ч`,score:`${r.score} ${balls(r.score)} на участке`}[sortKey];
+  return `${lead} — ${r.street}, ${r.seg}, ${when}: ${fact}${r.note&&period!=='today'?` (${r.note})`:''}. По данным 2ГИС.`;
+}
+function renderHist(){
+  renderSeg($('perSeg'),PERIODS,period,'p'); renderSeg($('sortSeg'),SORTS,sortKey,'s');
+  const rows=sorted();
+  $('recordTxt').textContent = recordText(rows[0]);
+  $('hist').innerHTML = rows.map(r=>`<tr>
+    <td style="white-space:nowrap">${esc(r.date)}<div class="segtxt">с ${r.time}</div></td>
+    <td><div class="st">${esc(r.street)}</div><div class="segtxt">${esc(r.seg)}</div>${r.note?`<span class="note">${esc(r.note)}</span>`:''}</td>
+    <td class="r">${km(r.len)} км</td><td class="r">${shortDur(r.dur)}${period==='today'?'<div class="segtxt">и продолжается</div>':''}</td>
+    <td class="r">${r.speed} км/ч</td><td class="r">${pill(r.score)}</td></tr>`).join('');
+}
+
+// иллюстрации вместо фото
+function rnd(seed){let s=seed*9301+49297;return()=>{s=(s*9301+49297)%233280;return s/233280}}
+function scene(kind, seed){
+  const r=rnd(seed), sky = kind==='day'?['#9DB8D3','#D9E3EC']:kind==='snow'?['#6F7C8C','#B9C2CC']:['#2D3A5C','#E89A6B'];
+  let s=`<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g${seed}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/><stop offset="1" stop-color="${sky[1]}"/></linearGradient></defs>`;
+  s+=`<rect width="400" height="300" fill="url(#g${seed})"/>`;
+  let x=0; while(x<400){const w=20+r()*40,h=30+r()*70;s+=`<rect x="${x}" y="${140-h}" width="${w}" height="${h+10}" fill="#2A3140" opacity="${.55+r()*.3}"/>`;
+    for(let k=0;k<4;k++) if(r()>.5) s+=`<rect x="${x+4+r()*(w-10)}" y="${145-h+r()*h*.8}" width="3" height="4" fill="#F5D58A" opacity=".8"/>`; x+=w+2}
+  s+=`<polygon points="170,140 230,140 400,300 0,300" fill="#3A3F48"/><rect x="0" y="138" width="400" height="4" fill="#4A505B"/>`;
+  for(let i=0;i<6;i++){const t=i/6,t2=(i+.5)/6,yy=140+160*t*t,yy2=140+160*t2*t2;s+=`<polygon points="${199-1-t*3},${yy} ${201+1+t*3},${yy} ${201+1+t2*3},${yy2} ${199-1-t2*3},${yy2}" fill="#E6E6E6" opacity=".6"/>`}
+  const cols=['#C9CED6','#8A2F2F','#2E4A7A','#E8E8E8','#3D3D3D','#6B7B4A','#B58A2E'];
+  for(let i=11;i>=0;i--){ const t=(i+1)/13, yy=140+160*t*t, sc=.15+t*1.1;
+    for(const lane of [-1,1]){ if(r()<.15) continue; const cx=200+lane*(30+sc*55)*(.55+t*.6), w=70*sc, h=42*sc, col=cols[Math.floor(r()*cols.length)];
+      s+=`<rect x="${cx-w/2}" y="${yy-h}" width="${w}" height="${h}" rx="${6*sc}" fill="${col}"/><rect x="${cx-w/2+w*.12}" y="${yy-h-h*.35}" width="${w*.76}" height="${h*.45}" rx="${5*sc}" fill="${col}" opacity=".9"/>`;
+      s+=`<rect x="${cx-w/2+w*.06}" y="${yy-h*.62}" width="${w*.18}" height="${h*.16}" fill="#FF3B3B"/><rect x="${cx+w/2-w*.24}" y="${yy-h*.62}" width="${w*.18}" height="${h*.16}" fill="#FF3B3B"/>`;
+      s+=`<circle cx="${cx-w*.33}" cy="${yy-h*.54}" r="${w*.22}" fill="#FF4040" opacity=".18"/><circle cx="${cx+w*.33}" cy="${yy-h*.54}" r="${w*.22}" fill="#FF4040" opacity=".18"/>`;}}
+  if(kind==='snow') for(let i=0;i<90;i++) s+=`<circle cx="${r()*400}" cy="${r()*300}" r="${.8+r()*1.8}" fill="#fff" opacity="${.5+r()*.5}"/>`;
+  return s+'</svg>';
+}
+function renderPhotos(){
+  $('photos').innerHTML = C().photos.map((p,i)=>`<figure class="photo" style="margin:0">${scene(p[3],p[5])}
+    <figcaption class="cap"><b>${esc(p[0])}</b><span class="muted">${esc(p[4])}</span>
+    <span class="muted">Фото: пользователь 2ГИС ${esc(p[2])}, сегодня в ${p[1]}</span>
+    <div><button class="btn" data-cap="${i}">Скопировать подпись</button></div></figcaption></figure>`).join('');
+}
+
+const USP=[
+  ['Фото с дорог от водителей','Снимки пробки из навигатора с готовой подписью и ссылкой на источник. Иллюстрация к новости за секунду.',1],
+  ['Текст под хронометраж','10 секунд, 30 секунд, новость для сайта, пост для соцсетей. Ведущий читает без правок.',1],
+  ['Совет, как объехать','Не просто «стоит», а «лучше по Бугринскому, быстрее на 19 минут». Полезно слушателю, и бренд звучит как помощник.',1],
+  ['Сравнение с обычным днём и прогноз','«На балл больше, чем обычно по четвергам, к 10:00 станет 6». Готовая подводка к следующему выпуску.',1],
+  ['Мосты и узкие места города','Ключевые точки вынесены отдельно: для Новосибирска это мосты через Обь.',1],
+  ['Рекорды и контекст','«Самая долгая пробка месяца» с причиной: первый снег, 1 сентября, выезд на дачи. Это готовые инфоповоды.',1],
+  ['Озвучка без диктора','Сводка звучит синтезированным голосом. Для небольших станций без ведущего в утреннем эфире.',1],
+  ['Мгновенные алерты о ЧП','Нетипичная пробка или ДТП — сразу письмо или сообщение в Telegram редакции, раньше, чем у конкурента.',1],
+  ['Виджет и API','Сайт ставит виджет одной строкой, радио забирает текст прямо в эфирный софт.',1],
+  ['Экономика пробок','Сколько часов город простоял с утра. Цифра для деловых СМИ и итоговых выпусков.',1],
+  ['Районные сводки','Отдельные тексты для районных пабликов и газет: Академгородок, левый берег, Бердск.',0],
+  ['Погода и события','Связка с прогнозом и афишей: «вечером матч на стадионе, ждём 9 баллов у арены».',0]
+];
+function renderUSP(){
+  $('usp').innerHTML = USP.map(([t,d,done])=>`<div class="ucard"><div class="row"><h3>${t}</h3><span class="${done?'st-done':'st-idea'}">${done?'В прототипе':'Идея'}</span></div><p>${d}</p></div>`).join('');
+}
+
+function renderApi(){
+  const c=C();
+  $('apiCity').textContent=c.id;
+  $('embed').textContent = `<div id="traffic-widget"></div>\n<script src="https://example.org/traffic-widget.js"\n  data-city="${c.id}"\n  data-format="radio-30"\n  data-theme="auto"><\/script>`;
+  const o={city:c.name,updated_at:`${TODAY.toISOString().slice(0,10)}T${hhmm(SNAP)}:00+07:00`,score:c.score,typical_score:c.typical,
+    total_km:+c.totalKm.toFixed(1),share_of_roads:pct(c)/100,
+    top:c.jams.slice(0,2).map(j=>({street:j.street,segment:j.seg,speed_kmh:j.speed,length_km:j.len,travel_min:Math.round(travel(j)),score:j.score,detour:j.alt?{via:j.alt.via,saves_min:j.alt.save}:null})),
+    scripts:{radio_10s:FORMATS.short.make(c)}};
+  $('api').textContent = JSON.stringify(o,null,2);
+}
+
+function renderMail(){
+  const c=C(), on=id=>$(id).checked, freq=$('subFreq').selectedOptions[0].textContent;
+  let b='';
+  if(on('c1')) b+=`<p>${esc(FORMATS.half.make(c))}</p>`;
+  if(on('c2')) b+=`<div><div class="label">Топ-5 пробок</div><ol>${c.jams.slice(0,5).map(j=>`<li><b>${esc(j.street)}</b>, ${esc(j.seg)} — ${km(j.len)} км, ${j.speed} км/ч, ${shortDur(travel(j))}${j.alt?`. Объезд ${esc(j.alt.via)}`:''}</li>`).join('')}</ol></div>`;
+  if(on('c3')&&c.atyp.length) b+=`<div><div class="label">Нетипичные</div><ol>${c.atyp.slice(0,3).map(a=>`<li><b>${esc(a.street)}</b> — ${a.cause.toLowerCase()}: ${esc(a.why)}</li>`).join('')}</ol></div>`;
+  if(on('c4')) b+=`<p class="muted">${c.photos.length} фото с дорог во вложении, подписи готовы.</p>`;
+  if(on('c5')){const r=[...c.hist.week].sort((a,b)=>b.dur-a.dur)[0]; b+=`<p><b>Рекорд недели:</b> ${esc(r.street)}, ${r.date.split(',')[0]} — ${dur(r.dur)}.</p>`}
+  if(!b) b='<p class="muted">Отметьте хотя бы один пункт, чтобы письмо было не пустым.</p>';
+  $('mail').innerHTML = `<div class="mail-h"><span class="muted">Кому: ${esc($('subEmail').value||'—')} · ${esc(freq.toLowerCase())}</span><b>Пробки, ${c.name}, ${hhmm(SNAP)}: ${c.score} ${balls(c.score)}</b></div><div class="mail-b">${b}<p class="muted" style="font-size:12px">Можно цитировать со ссылкой на 2ГИС. Отписаться — в настройках подписки.</p></div>`;
+}
+
+function renderAll(){renderCitySel();renderHero();renderChart();renderTop();renderGroups();renderAtyp();renderHist();renderPhotos();renderApi();renderMail()}
+
+// интерактив
+let toastT;
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1800)}
+function copy(text, el){
+  const done=()=>toast('Скопировано');
+  try{navigator.clipboard.writeText(text).then(done,()=>fallback())}catch(e){fallback()}
+  function fallback(){const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+    let ok=false;try{ok=document.execCommand('copy')}catch(e){} ta.remove(); toast(ok?'Скопировано':'Выделите текст и скопируйте вручную')}
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.c){city=b.dataset.c;stopSpeak();renderAll()}
+  else if(b.dataset.f){fmt=b.dataset.f;stopSpeak();renderScript()}
+  else if(b.dataset.p){period=b.dataset.p;renderHist()}
+  else if(b.dataset.s){sortKey=b.dataset.s;renderHist()}
+  else if(b.dataset.cap!==undefined){const p=C().photos[+b.dataset.cap];copy(`Фото: пользователь 2ГИС ${p[2]}. ${p[0]}, ${dateStr}, ${p[1]}`)}
+});
+$('copyScript').onclick=()=>copy($('script').textContent);
+$('copyRecord').onclick=()=>copy($('recordTxt').textContent);
+$('copyEmbed').onclick=()=>copy($('embed').textContent);
+
+const sp=$('speak'); let speaking=false;
+function stopSpeak(){try{speechSynthesis.cancel()}catch(e){} speaking=false; sp.textContent='Прослушать'}
+if('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window){
+  sp.hidden=false;
+  sp.onclick=()=>{
+    if(speaking){stopSpeak();return}
+    try{const u=new SpeechSynthesisUtterance($('script').textContent.replace(/\n+/g,'. '));u.lang='ru-RU';u.rate=1.05;
+      const v=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.startsWith('ru')); if(v)u.voice=v;
+      u.onend=stopSpeak; u.onerror=()=>{stopSpeak();toast('Озвучка недоступна в этом браузере')};
+      speechSynthesis.speak(u); speaking=true; sp.textContent='Остановить'}catch(e){toast('Озвучка недоступна в этом браузере')}
+  };
+}
+
+['subEmail','subFreq','c1','c2','c3','c4','c5','c6'].forEach(id=>$(id).addEventListener('input',renderMail));
+$('subForm').addEventListener('submit',e=>{
+  e.preventDefault(); const m=$('subEmail').value.trim(), ok=$('subOk');
+  ok.hidden=false;
+  if(!/^\S+@\S+\.\S+$/.test(m)){ok.style.color='var(--bad)';ok.textContent='Проверьте адрес почты: в нём должен быть знак @ и домен.';return}
+  ok.style.color='var(--ok)';
+  ok.textContent=`Готово. Сводка по городу ${C().name} будет приходить на ${m}${$('c6').checked?', алерты о ЧП — сразу':''}. В прототипе письма не отправляются.`;
+});
+
+// «живое» обновление
+let ago=0;
+function tick(){ago+=5; if(ago>=30){ago=0; for(const c of Object.values(CITIES)){c.totalKm=Math.max(40,c.totalKm+(Math.random()-.45)*1.6)} renderHero(); renderApi()}
+  $('upd').textContent = ago===0?'Обновлено только что':`Обновлено ${ago} с назад`}
+renderAll(); $('upd').textContent='Обновлено только что'; setInterval(tick,5000);
+</script>
+
+</body>
+</html>
