@@ -243,6 +243,13 @@ footer{font-size:14px;color:var(--muted);padding-top:8px}
 /* конструктор выпуска */
 .b-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .b-row>.label{min-width:110px}
+[hidden]{display:none!important}
+.hero{align-items:start;grid-template-columns:minmax(0,4fr) minmax(0,8fr)}
+.scorebox{position:sticky;top:calc(150px + env(safe-area-inset-top,0px))}
+@media (max-width:900px){.scorebox{position:static}}
+.out{display:flex;flex-direction:column;gap:10px}
+.post-out{background:var(--raised);border-radius:14px;padding:16px 18px}
+.post{white-space:pre-line;font-size:15px;line-height:1.55;max-height:300px;overflow:auto;margin:0}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{border:0;border-radius:999px;padding:7px 13px;font-size:14px;font-weight:600;cursor:pointer;background:var(--sunk);color:var(--muted)}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
@@ -338,20 +345,24 @@ section{scroll-margin-top:calc(130px + env(safe-area-inset-top,0px))}
         <p class="sum" id="heroSum"></p>
       </div>
       <div class="ready">
-        <div class="ready-head">
-          <h3>Собрать выпуск</h3>
-          <div class="sp"></div>
-          <div class="seg" id="fmtSeg" role="group" aria-label="Формат"></div>
+        <h3>Собрать выпуск</h3>
+        <div class="b-row"><span class="label">О чём</span><div class="seg" id="topicSeg" role="group" aria-label="Тема выпуска"></div></div>
+        <div class="b-row" id="chipRow" hidden><span class="label">Что включить</span><div class="chips" id="chips"></div></div>
+        <div class="b-row"><span class="label">Хронометраж</span><div class="seg" id="durSeg" role="group" aria-label="Хронометраж"></div></div>
+        <div class="out">
+          <span class="label" id="airLabel">Для эфира</span>
+          <p class="script" id="script"></p>
+          <div class="actions">
+            <button class="btn primary" id="copyScript">Скопировать для эфира</button>
+            <button class="btn" id="speak" hidden>Прослушать</button>
+          </div>
         </div>
-        <div class="b-row" id="durRow"><span class="label">Хронометраж</span><div class="seg" id="durSeg" role="group" aria-label="Хронометраж"></div></div>
-        <div class="b-row" id="chipRow"><span class="label">Что включить</span><div class="chips" id="chips"></div></div>
-        <p class="script" id="script"></p>
-        <div class="timing" id="timing"><div class="tbar" id="tbar"><i></i></div><span class="tmeta" id="tmeta"></span></div>
-        <div class="actions">
-          <button class="btn primary" id="copyScript">Скопировать выпуск</button>
-          <button class="btn" id="speak" hidden>Прослушать</button>
+        <div class="out post-out">
+          <span class="label">Для сайта и соцсетей</span>
+          <p class="post" id="post"></p>
+          <div class="actions"><button class="btn" id="copyPost">Скопировать пост</button></div>
         </div>
-        <p class="script-meta" id="speakNote" hidden>«Прослушать» — проверка хронометража на слух и готовый звук для станций без ведущего. В реальной версии — качественный синтез речи и аудиофайл по API.</p>
+        <p class="script-meta" id="speakNote" hidden>«Прослушать» — проверка текста на слух и готовый звук для станций без ведущего. В реальной версии — качественный синтез речи и аудиофайл по API.</p>
       </div>
     </div>
 
@@ -432,7 +443,7 @@ section{scroll-margin-top:calc(130px + env(safe-area-inset-top,0px))}
             <div class="field"><span class="label">Что включить</span>
               <div class="checks">
                 <label><input type="checkbox" id="c0" checked> Дорожные события с объездами</label>
-                <label><input type="checkbox" id="c1" checked> Готовый выпуск на 30 секунд</label>
+                <label><input type="checkbox" id="c1" checked> Готовый выпуск для эфира на 30 секунд</label>
                 <label><input type="checkbox" id="c2" checked> Топ-5 пробок с объездами</label>
                 <label><input type="checkbox" id="c7"> Где заправиться: очереди и топливо по районам</label>
                 <label><input type="checkbox" id="c4"> Фото с дорог</label>
@@ -726,62 +737,97 @@ function fuelCity(c){
 
 /* ---------- конструктор выпуска ---------- */
 const DURS=[[10,'10 с'],[20,'20 с'],[30,'30 с'],[60,'60 с']];
-const BLOCKS=[['score','Баллы'],['closed','Перекрытия'],['accidents','ДТП'],['jams','Пробки и объезды'],['forecast','Прогноз'],['fuel','Заправки'],['record','Рекорд недели']];
-const PRESET={10:['score','closed','jams'],20:['score','closed','accidents','jams'],30:['score','closed','accidents','jams','forecast'],60:['score','closed','accidents','jams','forecast','fuel','record']};
+const TOPICS=[['all','Всё вместе'],['events','Перекрытия и ДТП'],['jams','Пробки'],['fuel','Бензин'],['custom','Свой выбор']];
+const BLOCKS=[['score','Баллы'],['events','Перекрытия и ДТП'],['jams','Пробки и объезды'],['forecast','Прогноз'],['fuel','Бензин'],['record','Рекорд недели']];
+const TOPIC_BLOCKS={all:['score','events','jams','forecast','fuel','record'],events:['events'],jams:['score','jams','forecast'],fuel:['fuel']};
 const WPS=2.3; // слов в секунду в эфирной речи
-let fmt='air', durSel=20, onBlocks=new Set(PRESET[20]);
-const available = (c,k) => k==='closed'?c.events.some(e=>e.kind==='closed'):k==='accidents'?c.events.some(e=>e.kind==='accident'):k==='fuel'?c.fuel.length>0:true;
+let topic='all', durSel=20, custom=new Set(['score','events','jams']);
+const blocksOf = t => new Set(t==='custom'?custom:TOPIC_BLOCKS[t]);
+const available = (c,k) => k==='events'?c.events.length>0:k==='fuel'?c.fuel.length>0:true;
+const wc = t => t.trim().split(/\s+/).length;
+const EV_ORDER={closed:0,accident:1,hazard:2,works:3,planned:4};
 
-function buildAir(c){
-  const L = durSel<=10?0:durSel<=20?1:durSel<=30?2:3, on=k=>onBlocks.has(k)&&available(c,k), p=[];
-  const m=c.events.find(e=>e.kind==='closed'), acc=c.events.filter(e=>e.kind==='accident'), pl=c.events.find(e=>e.kind==='planned');
-  const j=worstAlt(c), a=c.jams[0], b=c.jams[1], fh=forecastHour(), fs=c.hourly[fh];
-  if(on('score')) p.push(L>=2?`По данным 2ГИС, в ${c.gen} сейчас ${c.score} ${balls(c.score)}, ${cmpPhrase(c)}.`:`По данным 2ГИС, в ${c.gen} ${c.score} ${balls(c.score)}.`);
-  if(on('closed')){
-    p.push(L<=1?`${m.street} ${m.word}, объезд ${m.via}.`:L===2?`Важно: ${m.street} ${m.word} ${m.until}, объезд ${m.via}.`:`Важно: ${m.street}, ${m.seg}, ${m.word} ${m.until}. Объезд ${m.via}, это примерно на ${durAcc(m.extra)} дольше.`);
-    if(L===3&&pl) p.push(`Заранее: ${pl.since} ${pl.until} ${pl.street} ${pl.word}, объезд ${pl.via}.`);
+/* Кандидаты фраз: группа (порядок в тексте), приоритет (что важнее при нехватке времени), полный и короткий вариант. */
+function candidates(c,on){
+  const it=[], add=(g,o,pr,long,short)=>it.push({g,o,pr,long,short:short||null});
+  const evs=[...c.events].sort((a,b)=>EV_ORDER[a.kind]-EV_ORDER[b.kind]);
+  const j=worstAlt(c), a=c.jams[0], fh=forecastHour(), fs=c.hourly[fh];
+  const onlyFuel=on.size===1&&on.has('fuel'), onlyEv=on.size===1&&on.has('events');
+  if(on.has('score')) add(0,0,0,`По данным 2ГИС, в ${c.gen} сейчас ${c.score} ${balls(c.score)}, ${cmpPhrase(c)}.`,`По данным 2ГИС, в ${c.gen} ${c.score} ${balls(c.score)}.`);
+  else if(onlyEv) add(0,0,0,`Дорожная обстановка в ${c.gen} по данным 2ГИС.`,`По данным 2ГИС.`);
+  else if(!onlyFuel) add(0,0,0,`По данным 2ГИС.`);
+  if(on.has('events')) evs.forEach((e,i)=>{
+    const pr = e.kind==='closed'?1:e.kind==='accident'?2:e.kind==='planned'?9:7;
+    if(e.kind==='closed') add(1,i,pr,`${e.street}, ${e.seg}, ${e.word} ${e.until}. Объезд ${e.via}, это примерно на ${durAcc(e.extra)} дольше.`,`${e.street} ${e.word}, объезд ${e.via}.`);
+    else if(e.kind==='accident') add(1,i,pr,`ДТП: ${e.street}, ${e.seg}, ${e.lanes}, задержка ${dur(e.delay)}${e.via?`, объезд ${e.via}`:''}.`,`ДТП: ${e.street}, задержка ${dur(e.delay)}.`);
+    else if(e.kind==='hazard') add(1,i,pr,`${e.street}, ${e.seg}: ${e.what}, задержка ${dur(e.delay)}.`,`${e.street}: ${e.word.toLowerCase()}.`);
+    else if(e.kind==='works') add(1,i,pr,`${e.street}, ${e.seg}: ${e.what}, ${e.lanes} ${e.until}.`,`${e.street}: ${e.what}.`);
+    else add(1,i,pr,`Заранее: ${e.since} ${e.until} ${e.street} ${e.word}, объезд ${e.via}.`,`${cap(e.since)} ${e.street} ${e.word}.`);
+  });
+  if(on.has('jams')){
+    add(2,0,3,`${j.street} стоит, ${j.alt.via} быстрее на ${durAcc(j.alt.save)}.`,`${j.street} стоит, лучше ехать ${j.alt.via}.`);
+    if(a!==j) add(2,1,4,`Самая длинная пробка — ${a.street}: ${km(a.len)} км, в пути ${dur(travel(a))}.`,`Самая длинная пробка — ${a.street}.`);
+    c.jams.filter(x=>x!==a&&x!==j).slice(0,3).forEach((x,i)=>add(2,2+i,8+i,`${x.street} — ${km(x.len)} км, в пути ${dur(travel(x))}${x.alt?`, лучше ${x.alt.via}`:''}.`));
+    add(2,9,10,`Всего пробки растянулись на ${km(c.totalKm)} км, это ${pct(c)}% дорог города.`);
   }
-  if(on('accidents')) p.push(`${acc.length>1?'Аварии':'Авария'}: ${andList(acc.map(e=>e.street))}`+(L>=2?`, задержка до ${Math.max(...acc.map(e=>e.delay))} ${plural(Math.max(...acc.map(e=>e.delay)),'минуты','минут','минут')}.`:'.'));
-  if(on('jams')){
-    if(L===0) p.push(`${j.street} стоит, лучше ехать ${j.alt.via}.`);
-    else if(L===1) p.push(`${j.street} стоит, лучше ехать ${j.alt.via}.`+(a!==j?` Самая длинная пробка — ${a.street}, в пути ${dur(travel(a))}.`:''));
-    else {
-      p.push(`Самая длинная пробка — ${a.street}: ${km(a.len)} км, в пути ${dur(travel(a))}. ${j.street} стоит, ${j.alt.via} быстрее на ${durAcc(j.alt.save)}.`);
-      if(L===3) p.push(`Всего пробки растянулись на ${km(c.totalKm)} км, это ${pct(c)}% дорог города.`);
-    }
+  if(on.has('forecast')) add(3,0,5,`К ${pad(fh)}:00 ожидается ${fs} ${balls(fs)}.`);
+  if(on.has('fuel')&&c.fuel.length){
+    const r=fuelCity(c), busy=c.fuel.filter(f=>f.q>0).sort((x,y)=>y.q-x.q), calm=c.fuel.filter(f=>f.q===0);
+    add(4,0,onlyFuel?0:6,onlyFuel?`По данным пользователей 2ГИС, в ${c.gen} все виды топлива есть на ${r.all} из ${r.tot} заправок.`:`На заправках все виды топлива есть на ${r.all} из ${r.tot} АЗС.`);
+    const pl = ds => ds.length>1?'в '+andList(ds.map(f=>f.d.replace(/(ый|ий)$/,'ом')))+' районах':inDistrict(ds[0].d);
+    busy.filter(f=>f.q===2).forEach((f,i)=>add(4,1+i,(onlyFuel?1:11)+i,`${cap(inDistrict(f.d))} очереди на ${andList(f.where.slice(0,2))}${f.miss?`, ${f.miss}`:''}${f.limit?`, ${f.limit}`:''}.`,`${cap(inDistrict(f.d))} очереди.`));
+    const small=busy.filter(f=>f.q===1); if(small.length) add(4,5,onlyFuel?3:12,`Небольшие очереди — ${pl(small)}${small.some(f=>f.miss)?`; ${small.filter(f=>f.miss).map(f=>f.miss).join(', ')}`:''}.`,`Небольшие очереди — ${pl(small)}.`);
+    if(calm.length) add(4,9,onlyFuel?2:12,`Без очереди можно заправиться ${calm.length>1?'в '+andList(calm.map(f=>f.d.replace(/(ый|ий)$/,'ом')))+' районах':inDistrict(calm[0].d)}.`);
   }
-  if(on('forecast')) p.push(`К ${pad(fh)}:00 ожидается ${fs} ${balls(fs)}.`);
-  if(on('fuel')){const r=fuelCity(c); p.push(L<=1||!r.busy.length?`На заправках все виды топлива есть на ${r.all} из ${r.tot} АЗС.`:`На заправках все виды топлива есть на ${r.all} из ${r.tot} АЗС, очереди — ${r.busy.map(f=>inDistrict(f.d)).join(' и ')}.`)}
-  if(on('record')){const r=[...c.hist.week].sort((x,y)=>y.dur-x.dur)[0]; p.push(`Рекорд недели — ${r.street}, ${fullDay(r.date)}: пробка держалась ${dur(r.dur)}.`)}
-  return p.join(' ');
+  if(on.has('record')){const r=[...c.hist.week].sort((x,y)=>y.dur-x.dur)[0]; add(5,0,13,`Рекорд недели — ${r.street}, ${fullDay(r.date)}: пробка держалась ${dur(r.dur)}.`)}
+  return it;
 }
-const NEWS = c => {
-  const a=c.jams[0], m=c.events.find(e=>e.kind==='closed');
-  return `Пробки в ${c.gen} ${dateStr}: ${c.score} ${balls(c.score)}${m?`, ${m.street} ${m.word}`:''}\n\n`+
-    `Утром ${dateStr} загруженность дорог в ${c.gen} достигла ${c.score} ${balls(c.score)}, ${cmpPhrase(c)}, сообщает 2ГИС. Пробки растянулись на ${km(c.totalKm)} км — ${pct(c)}% дорог города. `+
-    (m?`${m.street} (${m.seg}) ${m.word} ${m.until}: ${m.what}. Объезд ${m.via}. `:'')+
-    `Самый длинный затор — ${a.street} (${a.seg}): ${km(a.len)} км при скорости ${a.speed} км/ч.`;
-};
-const POST = c => {
-  const t=c.jams.slice(0,4).map(j=>`— ${j.street}: ${km(j.len)} км, ${shortDur(travel(j))}`).join('\n');
-  const ev=c.events.filter(e=>e.kind!=='planned').map(e=>`— ${kindLabel(e)}: ${e.street}${e.via?`, объезд ${e.via}`:''}`).join('\n');
-  return `${c.name}, ${hhmm(SNAP)}. Пробки ${c.score} ${balls(c.score)}.\n\n${ev?`Дорожные события:\n${ev}\n\n`:''}Пробки:\n${t}\n\nДанные 2ГИС`;
-};
+/* Подгонка под хронометраж: по приоритету берём полную фразу, если не влезает — короткую, иначе пропускаем. */
+function buildAir(c,t=topic,d=durSel){
+  const on=blocksOf(t); for(const k of [...on]) if(!available(c,k)) on.delete(k);
+  if(!on.size) return '';
+  const budget=Math.round(d*WPS*1.05); let used=0; const pick=[];
+  const all=candidates(c,on).sort((p,q)=>p.pr-q.pr);
+  const core=all.filter(x=>x.pr<=6), rest=all.filter(x=>x.pr>6);
+  // 1) главное: по короткой фразе от каждого важного пункта
+  for(const x of core){const t=x.short||x.long, w=wc(t); if(used+w<=budget){pick.push([x,t]);used+=w}}
+  // 2) где осталось время — подробнее о главном
+  for(const pk of pick){const x=pk[0]; if(x.short&&pk[1]===x.short){const dw=wc(x.long)-wc(x.short); if(used+dw<=budget){pk[1]=x.long;used+=dw}}}
+  // 3) остаток — второстепенное
+  for(const x of rest){const lw=wc(x.long), sw=x.short?wc(x.short):Infinity;
+    if(used+lw<=budget){pick.push([x,x.long]);used+=lw} else if(used+sw<=budget){pick.push([x,x.short]);used+=sw}}
+  return pick.sort((p,q)=>p[0].g-q[0].g||p[0].o-q[0].o).map(p=>cap(p[1])).join(' ');
+}
+/* Текст для сайта и соцсетей: та же тема, без ограничения по времени. */
+function buildPost(c,t=topic){
+  const on=blocksOf(t); for(const k of [...on]) if(!available(c,k)) on.delete(k);
+  if(!on.size) return '';
+  const m=c.events.find(e=>e.kind==='closed'), a=c.jams[0], r=fuelCity(c), fh=forecastHour();
+  const nCl=c.events.filter(e=>e.kind==='closed').length, nAcc=c.events.filter(e=>e.kind==='accident').length;
+  const head = t==='events'?`Дорожные события в ${c.gen} ${dateStr}: ${nCl} ${plural(nCl,'перекрытие','перекрытия','перекрытий')}, ${nAcc} ДТП`
+    : t==='jams'?`Пробки в ${c.gen} ${dateStr}: ${c.score} ${balls(c.score)}, хуже всего — ${a.street}`
+    : t==='fuel'?`Где заправиться в ${c.gen}: все виды топлива на ${r.all} из ${r.tot} АЗС`
+    : `Пробки в ${c.gen} ${dateStr}: ${c.score} ${balls(c.score)}${m?`, ${m.street} ${m.word}`:''}`;
+  const parts=[head];
+  if(on.has('score')) parts.push(`По данным 2ГИС, в ${hhmm(SNAP)} загруженность дорог — ${c.score} ${balls(c.score)}, ${cmpPhrase(c)}. Пробки растянулись на ${km(c.totalKm)} км, это ${pct(c)}% дорог города.`);
+  if(on.has('events')) parts.push('Перекрытия и ДТП:\n'+[...c.events].sort((x,y)=>EV_ORDER[x.kind]-EV_ORDER[y.kind]).map(e=>`— ${kindLabel(e)}: ${e.street}, ${e.seg}. ${cap(e.what)}${e.until?`, ${e.until}`:''}.${e.via?` Объезд ${e.via}.`:''}`).join('\n'));
+  if(on.has('jams')) parts.push('Где стоит:\n'+c.jams.slice(0,5).map(x=>`— ${x.street}: ${km(x.len)} км, в пути ${shortDur(travel(x))}${x.alt?`. Объезд ${x.alt.via}, быстрее на ${x.alt.save} мин`:''}`).join('\n'));
+  if(on.has('forecast')) parts.push(`Прогноз: к ${pad(fh)}:00 — ${c.hourly[fh]} ${balls(c.hourly[fh])}.`);
+  if(on.has('fuel')) parts.push('На заправках:\n'+c.fuel.map(f=>`— ${f.d} район: ${Q[f.q].toLowerCase()}${f.all===f.total?', все виды топлива':`, ${f.miss}`}${f.limit?`, ${f.limit}`:''}`).join('\n'));
+  if(on.has('record')){const x=[...c.hist.week].sort((p,q)=>q.dur-p.dur)[0]; parts.push(`Рекорд недели: ${x.street}, ${fullDay(x.date)} — пробка держалась ${dur(x.dur)}.`)}
+  parts.push(`Данные 2ГИС${on.has('fuel')?', в том числе отметки пользователей на АЗС':''}.`);
+  return parts.join('\n\n');
+}
 function renderBuilder(){
   const c=C();
-  renderSeg($('fmtSeg'),[['air','Эфир'],['news','Новость'],['post','Пост']],fmt,'f');
-  $('durRow').hidden=$('chipRow').hidden=$('timing').hidden=fmt!=='air';
+  renderSeg($('topicSeg'),TOPICS,topic,'topic');
+  $('chipRow').hidden = topic!=='custom';
+  $('chips').innerHTML=BLOCKS.map(([k,l])=>`<button class="chip" data-chip="${k}" aria-pressed="${custom.has(k)&&available(c,k)}" ${available(c,k)?'':'disabled title="Сейчас нет данных"'}>${l}</button>`).join('');
   renderSeg($('durSeg'),DURS.map(([s,l])=>[String(s),l]),String(durSel),'dur');
-  $('chips').innerHTML=BLOCKS.map(([k,l])=>`<button class="chip" data-chip="${k}" aria-pressed="${onBlocks.has(k)&&available(c,k)}" ${available(c,k)?'':'disabled title="Сейчас нет данных"'}>${l}</button>`).join('');
-  const t = fmt==='air'?buildAir(c):fmt==='news'?NEWS(c):POST(c);
-  $('script').textContent = t || 'Выберите хотя бы один блок.';
-  if(fmt==='air'){
-    const words=t?t.split(/\s+/).length:0, sec=Math.round(words/WPS), over=sec>durSel*1.1;
-    $('tbar').classList.toggle('over',over); $('tbar').firstElementChild.style.width=Math.min(100,sec/durSel*100)+'%';
-    $('tmeta').className='tmeta'+(over?' over':'');
-    $('tmeta').innerHTML = over?`<b>≈ ${sec} с</b> из ${durSel} с · длиннее на ${sec-durSel} с, уберите блок или выберите ${durSel<60?DURS.find(d=>d[0]>durSel)[1]:'меньше блоков'}`:`<b>≈ ${sec} с</b> из ${durSel} с · ${words} ${plural(words,'слово','слова','слов')} · укладывается`;
-  }
-  $('copyScript').textContent = fmt==='air'?'Скопировать выпуск':fmt==='news'?'Скопировать новость':'Скопировать пост';
+  const air=buildAir(c), post=buildPost(c);
+  $('script').textContent = air || 'Выберите хотя бы одну тему.';
+  $('airLabel').textContent = `Для эфира · ${durSel} секунд`;
+  $('post').textContent = post || 'Выберите хотя бы одну тему.';
 }
 
 /* ---------- вкладки ---------- */
@@ -982,14 +1028,14 @@ function renderApi(){
   const o={city:c.name,updated_at:`${TODAY.toISOString().slice(0,10)}T${hhmm(SNAP)}:00+07:00`,score:c.score,typical_score:c.typical,
     events:c.events.slice(0,2).map(e=>({type:e.kind,street:e.street,segment:e.seg,reason:e.what,until:e.until,detour:e.via?{via:e.via,extra_min:e.extra}:null,radio:evPhrase(e)})),
     top:c.jams.slice(0,2).map(j=>({street:j.street,segment:j.seg,travel_min:Math.round(travel(j)),score:j.score,detour:j.alt?{via:j.alt.via,saves_min:j.alt.save}:null})),
-    broadcast:{duration_options:[10,20,30,60], text_20s:(()=>{const d=durSel,o=onBlocks;durSel=20;onBlocks=new Set(PRESET[20]);const t=buildAir(c);durSel=d;onBlocks=o;return t})()}};
+    broadcast:{duration_options:[10,20,30,60], text_20s:buildAir(c,'all',20), post:buildPost(c,'all')}};
   $('api').textContent = JSON.stringify(o,null,2);
 }
 function renderMail(){
   const c=C(), on=id=>$(id).checked, freq=$('subFreq').selectedOptions[0].textContent;
   let b='';
   if(on('c0')&&c.events.length) b+=`<div><div class="label">Дорожные события</div><ol>${c.events.map(e=>`<li><b>${kindLabel(e)}: ${esc(e.street)}</b>, ${esc(e.seg)} — ${esc(e.what)}${e.via?`. Объезд ${esc(e.via)}`:''}</li>`).join('')}</ol></div>`;
-  if(on('c1')){const d=durSel,o=onBlocks;durSel=30;onBlocks=new Set(PRESET[30]);b+=`<p>${esc(buildAir(c))}</p>`;durSel=d;onBlocks=o}
+  if(on('c1')) b+=`<p>${esc(buildAir(c,'all',30))}</p>`;
   if(on('c2')) b+=`<div><div class="label">Топ-5 пробок</div><ol>${c.jams.slice(0,5).map(j=>`<li><b>${esc(j.street)}</b>, ${esc(j.seg)} — ${km(j.len)} км, ${shortDur(travel(j))}${j.alt?`. Объезд ${esc(j.alt.via)}`:''}</li>`).join('')}</ol></div>`;
   if(on('c7')&&c.fuel.length) b+=`<p><b>Где заправиться.</b> ${esc(fuelCity(c).t)}</p>`;
   if(on('c4')) b+=`<p class="muted">${c.photos.length} фото с дорог во вложении, подписи готовы.</p>`;
@@ -1020,9 +1066,9 @@ document.addEventListener('click',e=>{
   if(d.c){city=d.c;evFilter='all';place='top';showAll=false;stopSpeak();renderAll()}
   else if(d.tab) goTab(d.tab);
   else if(d.goto) goTab(d.goto,d.anchor);
-  else if(d.f){fmt=d.f;stopSpeak();renderBuilder()}
-  else if(d.dur){durSel=+d.dur;onBlocks=new Set(PRESET[durSel]);stopSpeak();renderBuilder()}
-  else if(d.chip){onBlocks.has(d.chip)?onBlocks.delete(d.chip):onBlocks.add(d.chip);stopSpeak();renderBuilder()}
+  else if(d.topic){topic=d.topic;stopSpeak();renderBuilder()}
+  else if(d.dur){durSel=+d.dur;stopSpeak();renderBuilder()}
+  else if(d.chip){custom.has(d.chip)?custom.delete(d.chip):custom.add(d.chip);stopSpeak();renderBuilder()}
   else if(d.fuel!==undefined){const c=C();copy(d.fuel==='city'?fuelCity(c).t:fuelPhrase(c.fuel[+d.fuel]))}
   else if(d.ev){evFilter=d.ev;renderEvents()}
   else if(d.evcopy!==undefined){const c=C();copy(evPhrase(d.evcopy==='main'?mainEvent(c):c.events[+d.evcopy]))}
@@ -1033,6 +1079,7 @@ document.addEventListener('click',e=>{
 });
 $('moreBtn').onclick=()=>{showAll=!showAll;renderPlaces()};
 $('copyScript').onclick=()=>copy($('script').textContent);
+$('copyPost').onclick=()=>copy($('post').textContent);
 $('copyAllEv').onclick=()=>copy(C().events.map(evPhrase).join('\n\n'));
 $('copyRecord').onclick=()=>copy($('recordTxt').textContent);
 $('copyEmbed').onclick=()=>copy($('embed').textContent);
